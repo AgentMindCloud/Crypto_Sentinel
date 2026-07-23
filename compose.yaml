@@ -1,0 +1,31 @@
+name: crypto-sentinel-shadow
+
+services:
+  crypto-sentinel:
+    build: .
+    restart: unless-stopped
+    init: true
+    stop_grace_period: 60s
+    pids_limit: 256
+    env_file:
+      - .env.docker
+    ports:
+      - "127.0.0.1:8788:8787"
+    volumes:
+      - ./config.docker.yaml:/config/config.yaml:ro
+      - sentinel-data:/data
+    read_only: true
+    tmpfs:
+      - /tmp:size=32m,noexec,nosuid,nodev
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    logging:
+      driver: local
+      options:
+        max-size: 10m
+        max-file: "3"
+
+volumes:
+  sentinel-data:

@@ -1,0 +1,131 @@
+# Docker preset. Generate .env.docker, then copy this file to config.docker.yaml.
+symbols:
+- canonical: BTCUSDT
+  binance: BTCUSDT
+  bybit: BTCUSDT
+  okx: BTC-USDT-SWAP
+- canonical: ETHUSDT
+  binance: ETHUSDT
+  bybit: ETHUSDT
+  okx: ETH-USDT-SWAP
+- canonical: SOLUSDT
+  binance: SOLUSDT
+  bybit: SOLUSDT
+  okx: SOL-USDT-SWAP
+- canonical: BNBUSDT
+  binance: BNBUSDT
+  bybit: BNBUSDT
+  okx: BNB-USDT-SWAP
+- canonical: XRPUSDT
+  binance: XRPUSDT
+  bybit: XRPUSDT
+  okx: XRP-USDT-SWAP
+exchanges:
+  binance:
+    enabled: true
+    stale_after_seconds: 45
+    reconnect_min_seconds: 1
+    reconnect_max_seconds: 60
+  bybit:
+    enabled: true
+    stale_after_seconds: 45
+    reconnect_min_seconds: 1
+    reconnect_max_seconds: 60
+  okx:
+    enabled: true
+    stale_after_seconds: 45
+    reconnect_min_seconds: 1
+    reconnect_max_seconds: 60
+detector:
+  bucket_seconds: 5
+  baseline_seconds: 3600
+  min_baseline_points: 12
+  evaluate_every_seconds: 5
+  cooldown_seconds: 600
+  freshness_seconds: 30
+  minimum_window_quote_volume: 100000
+  emergency_absolute_multiplier: 1.75
+  windows:
+  - seconds: 60
+    warning:
+      min_abs_return_bps: 40
+      min_abs_return_z: 3.0
+      min_volume_z: 2.5
+      min_abs_imbalance: 0.55
+      min_confirmations: 1
+    critical:
+      min_abs_return_bps: 80
+      min_abs_return_z: 4.0
+      min_volume_z: 3.5
+      min_abs_imbalance: 0.68
+      min_confirmations: 2
+  - seconds: 300
+    warning:
+      min_abs_return_bps: 100
+      min_abs_return_z: 3.0
+      min_volume_z: 2.5
+      min_abs_imbalance: 0.5
+      min_confirmations: 1
+    critical:
+      min_abs_return_bps: 200
+      min_abs_return_z: 4.0
+      min_volume_z: 3.5
+      min_abs_imbalance: 0.62
+      min_confirmations: 2
+  liquidation:
+    enabled: true
+    window_seconds: 60
+    warning_usd: 500000
+    critical_usd: 2000000
+    min_exchanges_for_critical: 2
+  spread:
+    enabled: true
+    warning_bps: 35
+    critical_bps: 75
+    min_exchanges: 2
+dashboard:
+  enabled: true
+  host: 0.0.0.0
+  port: 8787
+  open_browser: false
+  access_token: ${DASHBOARD_TOKEN:-}
+  ingest_token: ${INGEST_TOKEN:-}
+notifiers:
+  local:
+    enabled: false
+    minimum_severity: warning
+    sound_file: ''
+    repeat_critical: 3
+    custom_command: []
+  ntfy:
+    enabled: false
+    server: https://ntfy.sh
+    topic: ${NTFY_TOPIC:-}
+    token: ${NTFY_TOKEN:-}
+    minimum_severity: warning
+    click_url: ''
+  telegram:
+    enabled: false
+    bot_token: ${TELEGRAM_BOT_TOKEN:-}
+    chat_id: ${TELEGRAM_CHAT_ID:-}
+    minimum_severity: warning
+  webhook:
+    enabled: false
+    url: ''
+    bearer_token: ''
+    minimum_severity: warning
+storage:
+  database: /data/sentinel.db
+  checkpoint: /data/state.json.gz
+  checkpoint_seconds: 60
+  checkpoint_max_age_seconds: 21600
+  metric_sample_seconds: 30
+  retain_metric_days: 7
+runtime:
+  log_level: INFO
+  log_file: /data/sentinel.log
+  log_max_bytes: 5000000
+  log_backups: 5
+  queue_size: 100000
+  startup_grace_seconds: 60
+  health_check_seconds: 15

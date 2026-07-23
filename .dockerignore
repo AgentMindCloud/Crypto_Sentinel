@@ -1,0 +1,15 @@
+.venv
+.env
+.env.docker
+config.yaml
+config.docker.yaml
+data
+build
+dist
+*.egg-info
+.pytest_cache
+.ruff_cache
+__pycache__
+*.pyc
+.git
+SETUP_REPORT.md

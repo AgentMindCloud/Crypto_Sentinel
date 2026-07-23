@@ -1,0 +1,14 @@
+.venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.ruff_cache/
+.env
+.env.docker
+config.yaml
+config.docker.yaml
+data/
+build/
+dist/
+*.egg-info/
+SETUP_REPORT.md

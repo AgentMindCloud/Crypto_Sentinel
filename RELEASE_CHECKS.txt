@@ -1,0 +1,102 @@
+Crypto Sentinel Free 0.1.0 — release checks
+Build date: 2026-07-22
+Build interpreter: CPython 3.13.5
+Supported project floor: Python 3.11+
+
+RESULT: OFFLINE RELEASE GATE PASSED
+
+1. Source and unit/integration tests
+- `python -m compileall -q src`: PASS
+- `pytest -q`: PASS, 29 passed in 0.40s
+- `bash -n scripts/*.sh`: PASS
+- Bundled `src/crypto_sentinel/config.example.yaml` matches root `config.example.yaml`: PASS
+- Ambient-environment test isolation: PASS (dashboard token test no longer inherits a host token)
+
+2. Configuration and local diagnostics
+- `config.example.yaml`: validated
+- `config.vps.example.yaml`: validated
+- `config.docker.example.yaml`: validated with generated nonempty token variables
+- `doctor --skip-network --json`: PASS
+  - interpreter
+  - writable database parent
+  - writable checkpoint parent
+  - writable log parent
+  - enabled exchange/symbol mappings
+  - at least one enabled alert-delivery path
+
+3. Deterministic detector simulation
+- Generated 2,232 normalized trades and two liquidation events.
+- Emitted exactly one alert.
+- Alert severity/category: critical / market_shock.
+- Price/volume/order-flow confirmation: Binance, Bybit, and OKX (three exchanges).
+- Corroborating liquidations: Binance and Bybit (two exchanges), USD 2.7 million total.
+- No weaker overlapping-window duplicate was emitted.
+
+4. Dashboard/API smoke
+Verified against the packaged server with feeds disabled:
+- public `/api/healthz`: PASS
+- unauthenticated `/api/status`: rejected with HTTP 401
+- authenticated `/api/status`: PASS
+- critical test alert: PASS
+- authenticated external `/api/ingest`: PASS
+- test alert plus external alert persisted to SQLite: exactly two rows
+- dashboard HTML and packaged static assets: PASS
+- graceful SIGTERM shutdown: PASS
+- final gzip checkpoint: PASS
+
+A separate source-tree smoke also verified:
+- cross-site mutation rejection: HTTP 403
+- non-JSON mutation rejection: HTTP 415
+- Content-Security-Policy, Cross-Origin-Resource-Policy, Referrer-Policy,
+  Cache-Control, and X-Content-Type-Options response headers
+- checkpoint restore and cooldown restore after restart
+- duplicate external alert suppression after restart
+
+5. Browser UI rendering
+- Headless Chromium DOM render using mocked dashboard API/EventSource data: PASS
+- Rendered five market cards, three feed cards, and one critical alert with zero page errors.
+- Screenshot: `/mnt/data/crypto-sentinel-dashboard.png` (1440 x 1000 PNG)
+- Direct navigation from the build sandbox to a local HTTP URL was blocked by sandbox administrator policy.
+  Chrome notification permission, background audio, and target-PC behavior therefore remain deployment checks.
+
+6. Wheel/package verification
+- Built `crypto_sentinel_free-0.1.0-py3-none-any.whl`: PASS
+- Wheel contains CLI modules, bundled example config, dashboard HTML, manifest, icon, and license metadata: PASS
+- Installed package path was isolated from the source tree: PASS
+- Installed-wheel checks: bundled config creation, config validation, local doctor,
+  deterministic simulation, authenticated dashboard, webhook ingestion, SQLite persistence,
+  graceful shutdown, and checkpoint creation: PASS
+- Release-tested dependency versions:
+  - aiohttp 3.13.3
+  - pydantic 2.13.4
+  - PyYAML 6.0.3
+
+The build sandbox could not download a fresh dependency set from its internal package index.
+The isolated wheel smoke therefore reused the already installed, pinned dependency versions above.
+This verifies the project wheel and runtime behavior, but not a clean public-PyPI dependency download.
+
+7. Live-network diagnostic result — EXPECTED ENVIRONMENT FAILURE
+`doctor --timeout 2 --json` correctly returned nonzero and reported connection timeouts for:
+- Binance: `wss://fstream.binance.com/market/stream?...`
+- Bybit: `wss://stream.bybit.com/v5/public/linear`
+- OKX: `wss://ws.okx.com:8443/ws/v5/public`
+- OKX instrument metadata HTTPS request also timed out.
+
+Outbound DNS/network access was unavailable in the build sandbox. Consequently, this release has NOT
+been verified here against live exchange payloads, live provider delivery, or real end-to-end latency.
+Run `crypto-sentinel --config config.yaml doctor` on the deployment host before relying on it.
+
+8. Not exercised in this environment
+- real Binance/Bybit/OKX WebSocket sessions or long-duration reconnect behavior
+- real ntfy, Telegram, or generic-webhook delivery and provider retry behavior
+- Windows sound output, PowerShell execution, and Task Scheduler registration
+- Linux systemd installation as root
+- Docker daemon build/run
+- actual Chrome notification permission and background sound
+- multi-day CPU, memory, queue, and latency soak tests
+- ruff, mypy, bandit, or another static-analysis/security scanner (not installed)
+
+Operational decision:
+This is a tested offline release candidate, not yet a production-validated trading safety system.
+Keep it monitoring-only, run the target-host doctor, test every enabled alarm path, and observe several
+days of false-positive/false-negative behavior before treating alerts as dependable.

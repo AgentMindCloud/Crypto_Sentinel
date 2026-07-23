@@ -1,0 +1,277 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="referrer" content="no-referrer">
+  <meta name="theme-color" content="#111827">
+  <link rel="manifest" href="/manifest.webmanifest">
+  <link rel="icon" href="/icon.svg">
+  <title>Crypto Sentinel Free</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      --bg: #0b0d12; --panel: #111827; --panel2: #151b28; --line: #293244;
+      --text: #edf2f7; --muted: #94a3b8; --good: #34d399; --warn: #fbbf24;
+      --critical: #fb7185; --info: #60a5fa;
+    }
+    * { box-sizing: border-box; }
+    body { margin: 0; background: var(--bg); color: var(--text); font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
+    .shell { width: min(1500px, calc(100% - 28px)); margin: 18px auto 60px; }
+    header { display: flex; align-items: center; justify-content: space-between; gap: 18px; margin-bottom: 16px; }
+    h1 { font-size: clamp(1.4rem, 2vw, 2rem); margin: 0; letter-spacing: -.03em; }
+    .sub { color: var(--muted); margin-top: 4px; font-size: .92rem; }
+    .clock { color: var(--muted); font-variant-numeric: tabular-nums; text-align: right; }
+    .controls { display: flex; flex-wrap: wrap; gap: 8px; margin: 14px 0 18px; }
+    button { border: 1px solid var(--line); background: var(--panel2); color: var(--text); border-radius: 9px; padding: 9px 12px; cursor: pointer; font-weight: 650; }
+    button:hover { border-color: #4b5e7a; }
+    button.armed { border-color: var(--good); color: var(--good); }
+    button.critical { border-color: #7f1d1d; color: #fecdd3; }
+    .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 10px; }
+    .card { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 13px; min-height: 88px; }
+    .card .name { text-transform: uppercase; letter-spacing: .08em; font-size: .75rem; color: var(--muted); }
+    .card .value { font-size: 1.15rem; font-weight: 750; margin-top: 8px; }
+    .card .detail { color: var(--muted); font-size: .8rem; margin-top: 5px; }
+    .status-dot { width: 9px; height: 9px; display: inline-block; border-radius: 50%; margin-right: 7px; background: var(--critical); box-shadow: 0 0 10px currentColor; }
+    .status-dot.good { background: var(--good); }
+    .status-dot.warn { background: var(--warn); }
+    .section { margin-top: 18px; background: var(--panel); border: 1px solid var(--line); border-radius: 12px; overflow: hidden; }
+    .section-title { padding: 13px 15px; border-bottom: 1px solid var(--line); display: flex; justify-content: space-between; align-items: center; }
+    .section-title h2 { font-size: 1rem; margin: 0; }
+    .hint { color: var(--muted); font-size: .78rem; }
+    .table-wrap { overflow-x: auto; }
+    table { width: 100%; border-collapse: collapse; min-width: 900px; }
+    th, td { padding: 11px 13px; text-align: left; border-bottom: 1px solid #202839; vertical-align: top; }
+    th { color: var(--muted); font-size: .72rem; text-transform: uppercase; letter-spacing: .07em; }
+    td { font-size: .86rem; }
+    tr:last-child td { border-bottom: none; }
+    .badge { display: inline-block; border-radius: 999px; padding: 3px 8px; font-size: .72rem; font-weight: 800; text-transform: uppercase; letter-spacing: .05em; }
+    .badge.critical { color: #fecdd3; background: #4c0519; }
+    .badge.warning { color: #fde68a; background: #422006; }
+    .badge.info { color: #bfdbfe; background: #172554; }
+    .message { color: #cbd5e1; max-width: 700px; line-height: 1.45; }
+    .small { color: var(--muted); font-size: .75rem; margin-top: 4px; }
+    #connection { font-weight: 750; }
+    #connection.good { color: var(--good); }
+    #connection.bad { color: var(--critical); }
+    .empty { text-align: center; color: var(--muted); padding: 30px; }
+    @media (max-width: 700px) { .shell { width: min(100% - 16px, 1500px); margin-top: 10px; } header { align-items: flex-start; } }
+  </style>
+</head>
+<body>
+  <main class="shell">
+    <header>
+      <div>
+        <h1>Crypto Sentinel Free</h1>
+        <div class="sub">Keyless public feeds · deterministic anomaly detection · no auto-trading</div>
+      </div>
+      <div class="clock"><div id="clock"></div><div id="connection">connecting…</div></div>
+    </header>
+
+    <div class="controls">
+      <button id="arm">Arm browser sound</button>
+      <button id="notify">Enable browser notifications</button>
+      <button id="test-warning">Test warning</button>
+      <button id="test-critical" class="critical">Test critical</button>
+    </div>
+
+    <section class="grid" id="feed-grid"></section>
+
+    <section class="section">
+      <div class="section-title">
+        <h2>Market state</h2>
+        <span class="hint">The shortest configured window is shown. “Ready” means a robust baseline exists on that venue.</span>
+      </div>
+      <section class="grid" id="market-grid"></section>
+    </section>
+
+    <section class="section">
+      <div class="section-title">
+        <h2>Recent alerts</h2>
+        <span class="hint">Local process sound remains primary; browser sound requires this page to be armed.</span>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Time</th><th>Severity</th><th>Symbol</th><th>Category</th><th>Details</th><th>Sources</th></tr></thead>
+          <tbody id="alerts"><tr><td class="empty" colspan="6">No alerts recorded yet.</td></tr></tbody>
+        </table>
+      </div>
+    </section>
+  </main>
+<script>
+(() => {
+  const query = new URLSearchParams(location.search);
+  const suppliedToken = query.get('token') || '';
+  let token = suppliedToken || localStorage.getItem('cryptoSentinelToken') || '';
+  if (suppliedToken) {
+    localStorage.setItem('cryptoSentinelToken', suppliedToken);
+    query.delete('token');
+    const cleanQuery = query.toString();
+    history.replaceState(null, '', `${location.pathname}${cleanQuery ? `?${cleanQuery}` : ''}${location.hash}`);
+  }
+  const tokenQuery = token ? `?token=${encodeURIComponent(token)}` : '';
+  let audioContext = null;
+  let armed = false;
+  const alertsBody = document.getElementById('alerts');
+  const connection = document.getElementById('connection');
+
+  const headers = () => token ? {'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json'} : {'Content-Type': 'application/json'};
+  async function api(path, options={}) {
+    const response = await fetch(path, {...options, headers: {...headers(), ...(options.headers || {})}});
+    if (!response.ok) throw new Error(`${response.status} ${await response.text()}`);
+    return response.json();
+  }
+
+  function escapeHtml(value) {
+    return String(value ?? '').replace(/[&<>'"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[c]));
+  }
+  function fmtTime(ms) { return new Date(ms).toLocaleString([], {hour12:false}); }
+  function fmtAge(seconds) {
+    if (seconds == null) return 'no data';
+    if (seconds < 1) return '<1s ago';
+    if (seconds < 60) return `${Math.round(seconds)}s ago`;
+    return `${Math.round(seconds/60)}m ago`;
+  }
+
+  function alertRow(alert) {
+    const exchanges = (alert.exchanges || []).map(escapeHtml).join(', ');
+    return `<tr data-id="${escapeHtml(alert.id)}">
+      <td>${fmtTime(alert.timestamp_ms)}</td>
+      <td><span class="badge ${escapeHtml(alert.severity)}">${escapeHtml(alert.severity)}</span></td>
+      <td><strong>${escapeHtml(alert.symbol)}</strong><div class="small">${escapeHtml(alert.direction)}</div></td>
+      <td>${escapeHtml(alert.category)}</td>
+      <td><strong>${escapeHtml(alert.title)}</strong><div class="message">${escapeHtml(alert.message)}</div></td>
+      <td>${exchanges || '—'}<div class="small">${escapeHtml(alert.source || '')}</div></td>
+    </tr>`;
+  }
+
+  function insertAlert(alert, prepend=true) {
+    const empty = alertsBody.querySelector('.empty');
+    if (empty) alertsBody.innerHTML = '';
+    if (alertsBody.querySelector(`[data-id="${CSS.escape(alert.id)}"]`)) return false;
+    if (prepend) alertsBody.insertAdjacentHTML('afterbegin', alertRow(alert));
+    else alertsBody.insertAdjacentHTML('beforeend', alertRow(alert));
+    while (alertsBody.children.length > 200) alertsBody.lastElementChild.remove();
+    return true;
+  }
+
+  async function armAudio() {
+    audioContext = audioContext || new (window.AudioContext || window.webkitAudioContext)();
+    await audioContext.resume();
+    armed = true;
+    const button = document.getElementById('arm');
+    button.classList.add('armed'); button.textContent = 'Browser sound armed';
+    playPattern('info');
+  }
+
+  function tone(freq, start, duration, gainValue=.16) {
+    const osc = audioContext.createOscillator();
+    const gain = audioContext.createGain();
+    osc.frequency.value = freq; osc.type = 'square';
+    gain.gain.setValueAtTime(0.001, start);
+    gain.gain.exponentialRampToValueAtTime(gainValue, start + .02);
+    gain.gain.exponentialRampToValueAtTime(0.001, start + duration);
+    osc.connect(gain).connect(audioContext.destination);
+    osc.start(start); osc.stop(start + duration + .02);
+  }
+
+  function playPattern(severity) {
+    if (!armed || !audioContext) return;
+    const now = audioContext.currentTime + .03;
+    if (severity === 'critical') {
+      for (let cycle=0; cycle<3; cycle++) {
+        const base = now + cycle * 1.05;
+        tone(1100, base, .22, .22); tone(760, base+.27, .22, .22); tone(1100, base+.54, .34, .22);
+      }
+    } else if (severity === 'warning') {
+      tone(780, now, .25); tone(620, now+.32, .3);
+    } else {
+      tone(600, now, .12, .08);
+    }
+  }
+
+  function showNotification(alert) {
+    if (Notification.permission !== 'granted') return;
+    const notification = new Notification(alert.title, {body: alert.message, icon: '/icon.svg', tag: alert.dedup_key || alert.id, renotify: alert.severity === 'critical'});
+    notification.onclick = () => { window.focus(); notification.close(); };
+  }
+
+  function handleAlert(alert) {
+    if (!insertAlert(alert, true)) return;
+    playPattern(alert.severity); showNotification(alert);
+  }
+
+  async function refreshStatus() {
+    try {
+      const status = await api('/api/status');
+      const grid = document.getElementById('feed-grid');
+      grid.innerHTML = Object.entries(status.feeds || {}).map(([name, feed]) => {
+        const age = feed.message_age_seconds;
+        const staleLimit = (status.stale_after_seconds || {})[name] || 45;
+        const state = feed.connected && age != null && age <= staleLimit ? 'good' : (feed.connected ? 'warn' : 'bad');
+        const label = state === 'good' ? 'live' : (feed.connected ? 'stale' : 'offline');
+        return `<article class="card"><div class="name"><span class="status-dot ${state}"></span>${escapeHtml(name)}</div>
+          <div class="value">${label}</div><div class="detail">${feed.trades.toLocaleString()} trades · ${feed.liquidations.toLocaleString()} liquidations<br>${fmtAge(age)} · reconnects ${feed.reconnects}</div></article>`;
+      }).join('');
+      const marketGrid = document.getElementById('market-grid');
+      marketGrid.innerHTML = (status.markets || []).map(market => {
+        const price = market.price == null ? 'warming up' : Number(market.price).toLocaleString(undefined, {maximumSignificantDigits: 9});
+        const returnText = market.median_return_bps == null ? '—' : `${(market.median_return_bps / 100).toFixed(2)}%`;
+        const returnZ = market.max_abs_return_z == null ? '—' : Number(market.max_abs_return_z).toFixed(1);
+        const volumeZ = market.max_volume_z == null ? '—' : Number(market.max_volume_z).toFixed(1);
+        const imbalance = market.median_taker_imbalance == null ? '—' : `${(market.median_taker_imbalance * 100).toFixed(0)}%`;
+        const readyTarget = Math.min(2, market.configured_venues || 0);
+        const state = readyTarget > 0 && market.ready_venues >= readyTarget ? 'good' : (market.venues_with_price ? 'warn' : 'bad');
+        return `<article class="card"><div class="name"><span class="status-dot ${state}"></span>${escapeHtml(market.symbol)}</div>
+          <div class="value">${escapeHtml(price)}</div><div class="detail">${market.window_seconds}s return ${returnText}<br>ready ${market.ready_venues}/${market.configured_venues} · return z ${returnZ} · volume z ${volumeZ} · imbalance ${imbalance}</div></article>`;
+      }).join('');
+      connection.textContent = 'dashboard live'; connection.className = 'good';
+    } catch (error) {
+      connection.textContent = String(error).includes('401') ? 'token required' : 'dashboard disconnected';
+      connection.className = 'bad';
+    }
+  }
+
+  async function loadAlerts() {
+    try {
+      const data = await api('/api/alerts?limit=100');
+      alertsBody.innerHTML = '';
+      if (!data.alerts.length) alertsBody.innerHTML = '<tr><td class="empty" colspan="6">No alerts recorded yet.</td></tr>';
+      data.alerts.forEach(alert => insertAlert(alert, false));
+    } catch (error) { console.error(error); }
+  }
+
+  function connectEvents() {
+    const eventSource = new EventSource('/api/events' + tokenQuery);
+    eventSource.addEventListener('alert', event => handleAlert(JSON.parse(event.data)));
+    eventSource.onopen = () => { connection.textContent = 'dashboard live'; connection.className = 'good'; };
+    eventSource.onerror = () => { connection.textContent = 'event stream reconnecting'; connection.className = 'bad'; };
+  }
+
+  const notifyButton = document.getElementById('notify');
+  function showNotificationPermission(permission) {
+    notifyButton.classList.toggle('armed', permission === 'granted');
+    notifyButton.textContent = permission === 'granted'
+      ? 'Browser notifications enabled'
+      : permission === 'denied'
+        ? 'Browser notifications blocked'
+        : permission === 'unavailable'
+          ? 'Browser notifications unavailable'
+          : 'Enable browser notifications';
+  }
+
+  document.getElementById('arm').onclick = armAudio;
+  showNotificationPermission('Notification' in window ? Notification.permission : 'unavailable');
+  notifyButton.onclick = async () => {
+    if (!('Notification' in window)) return;
+    showNotificationPermission(await Notification.requestPermission());
+  };
+  document.getElementById('test-warning').onclick = async () => handleAlert(await api('/api/test-alert', {method:'POST', body:JSON.stringify({severity:'warning'})}));
+  document.getElementById('test-critical').onclick = async () => handleAlert(await api('/api/test-alert', {method:'POST', body:JSON.stringify({severity:'critical'})}));
+  setInterval(() => document.getElementById('clock').textContent = new Date().toLocaleString([], {hour12:false}), 1000);
+  setInterval(refreshStatus, 5000);
+  loadAlerts(); refreshStatus(); connectEvents();
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,16 @@
+# Exact direct and transitive runtime versions exercised on 2026-07-23.
+aiohappyeyeballs==2.7.1
+aiohttp==3.13.3
+aiosignal==1.4.0
+annotated-types==0.7.0
+attrs==26.1.0
+frozenlist==1.8.0
+idna==3.18
+multidict==6.7.1
+propcache==0.5.2
+pydantic==2.13.4
+pydantic-core==2.46.4
+PyYAML==6.0.3
+typing-extensions==4.16.0
+typing-inspection==0.4.2
+yarl==1.24.5
