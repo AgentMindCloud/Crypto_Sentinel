@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import logging
 import os
 import re
 from pathlib import Path
@@ -60,7 +61,12 @@ class SymbolConfig(StrictModel):
     @field_validator("canonical", "binance", "bybit", "okx")
     @classmethod
     def normalize_symbol(cls, value: str | None) -> str | None:
-        return value.upper() if value else value
+        if value is None:
+            return None
+        normalized = value.strip().upper()
+        if not normalized:
+            raise ValueError("symbols must not be blank")
+        return normalized
 
 
 class ExchangeConfig(StrictModel):
@@ -68,6 +74,12 @@ class ExchangeConfig(StrictModel):
     stale_after_seconds: int = Field(default=45, ge=10, le=600)
     reconnect_min_seconds: float = Field(default=1.0, ge=0.2, le=30)
     reconnect_max_seconds: float = Field(default=60.0, ge=1, le=600)
+
+    @model_validator(mode="after")
+    def valid_reconnect_range(self) -> ExchangeConfig:
+        if self.reconnect_max_seconds < self.reconnect_min_seconds:
+            raise ValueError("reconnect_max_seconds must be >= reconnect_min_seconds")
+        return self
 
 
 class ExchangesConfig(StrictModel):
@@ -97,6 +109,10 @@ class WindowConfig(StrictModel):
             raise ValueError("critical min_abs_return_z must be >= warning")
         if self.critical.min_volume_z < self.warning.min_volume_z:
             raise ValueError("critical min_volume_z must be >= warning")
+        if self.critical.min_abs_imbalance < self.warning.min_abs_imbalance:
+            raise ValueError("critical min_abs_imbalance must be >= warning")
+        if self.critical.min_confirmations < self.warning.min_confirmations:
+            raise ValueError("critical min_confirmations must be >= warning")
         return self
 
 
@@ -107,12 +123,24 @@ class LiquidationConfig(StrictModel):
     critical_usd: float = Field(default=2_000_000, gt=0)
     min_exchanges_for_critical: int = Field(default=2, ge=1, le=3)
 
+    @model_validator(mode="after")
+    def critical_not_weaker(self) -> LiquidationConfig:
+        if self.critical_usd < self.warning_usd:
+            raise ValueError("liquidation critical_usd must be >= warning_usd")
+        return self
+
 
 class SpreadConfig(StrictModel):
     enabled: bool = True
     warning_bps: float = Field(default=35, gt=0)
     critical_bps: float = Field(default=75, gt=0)
     min_exchanges: int = Field(default=2, ge=2, le=3)
+
+    @model_validator(mode="after")
+    def critical_not_weaker(self) -> SpreadConfig:
+        if self.critical_bps < self.warning_bps:
+            raise ValueError("spread critical_bps must be >= warning_bps")
+        return self
 
 
 class DetectorConfig(StrictModel):
@@ -124,6 +152,9 @@ class DetectorConfig(StrictModel):
     freshness_seconds: int = Field(default=30, ge=5, le=600)
     minimum_window_quote_volume: float = Field(default=100_000, ge=0)
     emergency_absolute_multiplier: float = Field(default=1.75, ge=1)
+    minimum_window_coverage: float = Field(default=0.8, ge=0.5, le=1)
+    maximum_data_gap_seconds: int = Field(default=15, ge=1, le=300)
+    max_future_skew_seconds: int = Field(default=5, ge=0, le=300)
     windows: list[WindowConfig]
     liquidation: LiquidationConfig = Field(default_factory=LiquidationConfig)
     spread: SpreadConfig = Field(default_factory=SpreadConfig)
@@ -131,10 +162,32 @@ class DetectorConfig(StrictModel):
     @field_validator("windows")
     @classmethod
     def unique_windows(cls, value: list[WindowConfig]) -> list[WindowConfig]:
+        if not value:
+            raise ValueError("at least one detector window is required")
         seconds = [item.seconds for item in value]
         if len(seconds) != len(set(seconds)):
             raise ValueError("detector windows must be unique")
         return sorted(value, key=lambda item: item.seconds)
+
+    @model_validator(mode="after")
+    def gap_must_fit_shortest_window(self) -> DetectorConfig:
+        if self.windows and self.maximum_data_gap_seconds >= self.windows[0].seconds:
+            raise ValueError("maximum_data_gap_seconds must be shorter than every detector window")
+        for window in self.windows:
+            stride_seconds = max(self.bucket_seconds, window.seconds / 2)
+            available_baseline_points = (
+                int((self.baseline_seconds - window.seconds) // stride_seconds) + 1
+                if self.baseline_seconds >= window.seconds
+                else 0
+            )
+            available_baseline_points = min(240, available_baseline_points)
+            if self.min_baseline_points > available_baseline_points:
+                raise ValueError(
+                    f"{window.seconds}s window can produce at most "
+                    f"{available_baseline_points} baseline point(s), below "
+                    f"min_baseline_points={self.min_baseline_points}"
+                )
+        return self
 
 
 class DashboardConfig(StrictModel):
@@ -144,12 +197,17 @@ class DashboardConfig(StrictModel):
     open_browser: bool = True
     access_token: str = ""
     ingest_token: str = ""
+    integration_token: str = ""
 
     @model_validator(mode="after")
-    def require_token_off_loopback(self) -> DashboardConfig:
-        loopback = {"127.0.0.1", "localhost", "::1"}
-        if self.enabled and self.host not in loopback and not self.access_token:
-            raise ValueError("dashboard access_token is required when binding outside loopback")
+    def require_access_token_when_enabled(self) -> DashboardConfig:
+        if self.enabled and not self.access_token.strip():
+            raise ValueError("dashboard access_token is required whenever the dashboard is enabled")
+        if self.integration_token:
+            if len(self.integration_token) < 32 or len(self.integration_token) > 256:
+                raise ValueError("integration_token must contain 32 to 256 characters")
+            if self.integration_token in {self.access_token, self.ingest_token}:
+                raise ValueError("integration_token must be distinct from dashboard/ingest tokens")
         return self
 
 
@@ -227,7 +285,59 @@ class AppConfig(StrictModel):
             raise ValueError("canonical symbols must be unique")
         if not value:
             raise ValueError("at least one symbol is required")
+        for exchange in ("binance", "bybit", "okx"):
+            venue_symbols = [
+                venue_symbol
+                for item in value
+                if (venue_symbol := getattr(item, exchange)) is not None
+            ]
+            if len(venue_symbols) != len(set(venue_symbols)):
+                raise ValueError(f"{exchange} symbols must be unique")
         return value
+
+    @model_validator(mode="after")
+    def confirmations_must_be_possible(self) -> AppConfig:
+        enabled = {
+            exchange
+            for exchange in ("binance", "bybit", "okx")
+            if getattr(self.exchanges, exchange).enabled
+        }
+        for symbol in self.symbols:
+            available = sum(1 for exchange in enabled if getattr(symbol, exchange) is not None)
+            liquidation_available = sum(
+                1
+                for exchange in enabled.intersection({"binance", "bybit"})
+                if getattr(symbol, exchange) is not None
+            )
+            if available == 0:
+                raise ValueError(
+                    f"{symbol.canonical} must be configured on at least one enabled exchange"
+                )
+            for window in self.detector.windows:
+                for level, threshold in (
+                    ("warning", window.warning),
+                    ("critical", window.critical),
+                ):
+                    if threshold.min_confirmations > available:
+                        raise ValueError(
+                            f"{symbol.canonical} {window.seconds}s {level} "
+                            f"min_confirmations={threshold.min_confirmations} exceeds "
+                            f"{available} configured enabled exchange(s)"
+                        )
+            if (
+                self.detector.liquidation.enabled
+                and self.detector.liquidation.min_exchanges_for_critical > liquidation_available
+            ):
+                raise ValueError(
+                    f"{symbol.canonical} liquidation min_exchanges_for_critical exceeds "
+                    f"{liquidation_available} configured liquidation-capable exchange(s)"
+                )
+            if self.detector.spread.enabled and self.detector.spread.min_exchanges > available:
+                raise ValueError(
+                    f"{symbol.canonical} spread min_exchanges exceeds "
+                    f"{available} configured enabled exchange(s)"
+                )
+        return self
 
     def symbol_map(self, exchange: str) -> dict[str, str]:
         mapping: dict[str, str] = {}
@@ -248,6 +358,21 @@ def load_config(path: str | Path) -> AppConfig:
     if not isinstance(raw, dict):
         raise ValueError("configuration root must be a mapping")
     expanded = _expand_env(raw)
+    from crypto_sentinel.connection import managed_token
+
+    try:
+        integration_token = managed_token(config_path)
+    except Exception:
+        # Catch all adapter/configuration decoding failures at this optional boundary.
+        # Connection failure must never stop the independent detector or local sound.
+        logging.getLogger(__name__).warning(
+            "Managed read-only connection disabled: verify its selected installation"
+        )
+        integration_token = ""
+    if integration_token is not None:
+        expanded.setdefault("dashboard", {})["integration_token"] = integration_token
+    if os.environ.get("CRYPTO_SENTINEL_SUPPRESS_BROWSER") == "1":
+        expanded.setdefault("dashboard", {})["open_browser"] = False
     config = AppConfig.model_validate(expanded)
 
     database = Path(config.storage.database)

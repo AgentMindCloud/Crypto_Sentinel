@@ -49,6 +49,16 @@ class Liquidation:
 
 MarketEvent = Trade | Liquidation
 
+_EXTERNAL_DEDUP_NAMESPACE = "external:"
+
+
+@dataclass(slots=True, frozen=True)
+class ReceivedMarketEvent:
+    event: MarketEvent
+    received_wall_ms: int
+    received_monotonic_s: float
+    continuity_generation: int
+
 
 @dataclass(slots=True)
 class Bucket:
@@ -115,6 +125,23 @@ class MetricSnapshot:
     trades: int = 0
     baseline_points: int = 0
     data_age_seconds: float | None = None
+    readiness_reason: str = "unavailable"
+    window_coverage_ratio: float = 0.0
+    largest_gap_seconds: float | None = None
+    recovery_seconds_remaining: float = 0.0
+
+    def to_dict(self) -> dict[str, Any]:
+        return asdict(self)
+
+
+@dataclass(slots=True, frozen=True)
+class DeliveryReceipt:
+    alert_id: str
+    channel: str
+    status: str
+    attempt: int
+    timestamp_ms: int
+    detail: str = ""
 
     def to_dict(self) -> dict[str, Any]:
         return asdict(self)
@@ -181,12 +208,19 @@ class Alert:
         metrics_raw = payload.get("metrics") if isinstance(payload.get("metrics"), dict) else {}
         metrics = _safe_json_value(metrics_raw)
         try:
-            timestamp_ms = int(payload.get("timestamp_ms") or now_ms)
+            source_timestamp_ms = int(payload.get("timestamp_ms") or now_ms)
         except (TypeError, ValueError):
-            timestamp_ms = now_ms
-        # A malformed external clock should not suppress legitimate future alerts through the
-        # cooldown mechanism. Accept up to five minutes of clock skew in either direction.
-        timestamp_ms = max(now_ms - 300_000, min(timestamp_ms, now_ms + 300_000))
+            source_timestamp_ms = now_ms
+        # Never store a future-dated alert. Future timestamps can sort ahead of real alerts and
+        # historically could prolong cooldowns after a system-clock correction. Preserve a
+        # bounded past timestamp for useful chronology and mark any normalization explicitly.
+        timestamp_ms = max(now_ms - 300_000, min(source_timestamp_ms, now_ms))
+        if timestamp_ms != source_timestamp_ms:
+            metrics = dict(metrics)
+            metrics["_timestamp_normalized"] = True
+        caller_dedup_key = str(
+            payload.get("dedup_key") or f"{source}:{symbol}:{category}:{direction}"
+        )
         return cls(
             severity=severity,
             category=category,
@@ -197,9 +231,10 @@ class Alert:
             direction=direction,
             exchanges=[source],
             metrics=metrics,
-            dedup_key=str(
-                payload.get("dedup_key", f"external:{source}:{symbol}:{category}:{direction}")
-            )[:300],
+            # External callers never control the complete key. Keeping every ingested alert
+            # inside this reserved namespace prevents a supplied detector-shaped key from
+            # suppressing an internal alert through the shared cooldown store.
+            dedup_key=f"{_EXTERNAL_DEDUP_NAMESPACE}{caller_dedup_key}"[:300],
             source=source,
         )
 

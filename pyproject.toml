@@ -4,8 +4,8 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "crypto-sentinel-free"
-version = "0.1.0"
-description = "Free, keyless, multi-exchange crypto anomaly alarms with a local dashboard and ntfy/Telegram delivery."
+version = "0.2.0"
+description = "Monitoring-only, keyless multi-exchange crypto anomaly alarms with a premium local dashboard."
 readme = "README.md"
 requires-python = ">=3.11"
 license = { text = "MIT" }

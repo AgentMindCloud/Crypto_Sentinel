@@ -59,7 +59,7 @@ class AnomalyDetector:
     def _candidate(self, metric: MetricSnapshot, window: WindowConfig) -> _Candidate | None:
         if metric.return_bps is None or metric.data_age_seconds is None:
             return None
-        if metric.data_age_seconds > self.detector.freshness_seconds:
+        if metric.data_age_seconds < 0 or metric.data_age_seconds > self.detector.freshness_seconds:
             return None
         direction = "up" if metric.return_bps > 0 else "down"
         if self._passes(metric, window.critical):
@@ -68,7 +68,10 @@ class AnomalyDetector:
             return _Candidate(metric=metric, severity=Severity.WARNING, direction=direction)
 
         # During baseline warm-up, an extreme absolute move is surfaced as a warning rather
-        # than silently ignored. Cross-exchange confirmation can still upgrade it later.
+        # than silently ignored. A discontinuous window is deliberately excluded: otherwise a
+        # post-outage price gap could be mislabeled as a move that occurred inside this window.
+        if metric.readiness_reason != "baseline_warmup":
+            return None
         emergency_threshold = (
             window.critical.min_abs_return_bps * self.detector.emergency_absolute_multiplier
         )
@@ -193,11 +196,19 @@ class AnomalyDetector:
             dedup_key=f"liquidation:{snapshot.symbol}:{direction}",
         )
 
-    def _spread_alert(self, symbol: str, now_ms: int) -> Alert | None:
+    def _spread_alert(
+        self,
+        symbol: str,
+        now_ms: int,
+        ready_exchanges: set[str],
+    ) -> Alert | None:
         config = self.detector.spread
         if not config.enabled:
             return None
         prices = self.state.latest_prices(symbol, self.detector.freshness_seconds, now_ms)
+        prices = {
+            exchange: price for exchange, price in prices.items() if exchange in ready_exchanges
+        }
         if len(prices) < config.min_exchanges:
             return None
         median_price = statistics.median(prices.values())
@@ -265,6 +276,7 @@ class AnomalyDetector:
             )
             liquidation_alert = self._liquidation_alert(liquidation_snapshot, now_ms)
             liquidation_consumed = False
+            spread_ready_exchanges: set[str] = set()
 
             price_alerts: list[Alert] = []
             for window in self.detector.windows:
@@ -276,10 +288,14 @@ class AnomalyDetector:
                         self.detector.baseline_seconds,
                         self.detector.min_baseline_points,
                         now_ms,
+                        maximum_data_gap_seconds=self.detector.maximum_data_gap_seconds,
+                        minimum_window_coverage=self.detector.minimum_window_coverage,
                     )
                     for exchange in self.exchanges
                 ]
                 snapshots.extend(metrics)
+                if window.seconds == self.detector.windows[0].seconds:
+                    spread_ready_exchanges = {metric.exchange for metric in metrics if metric.ready}
                 price_alert = self._price_alert(symbol, window, metrics, now_ms)
                 if price_alert:
                     price_alerts.append(price_alert)
@@ -303,7 +319,11 @@ class AnomalyDetector:
 
             if liquidation_alert and not liquidation_consumed:
                 alerts.append(liquidation_alert)
-            spread_alert = self._spread_alert(symbol, now_ms)
+            spread_alert = self._spread_alert(
+                symbol,
+                now_ms,
+                spread_ready_exchanges,
+            )
             if spread_alert:
                 alerts.append(spread_alert)
 

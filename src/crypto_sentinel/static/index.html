@@ -4,274 +4,1795 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="referrer" content="no-referrer">
-  <meta name="theme-color" content="#111827">
+  <meta name="theme-color" content="#0E0C0B">
   <link rel="manifest" href="/manifest.webmanifest">
   <link rel="icon" href="/icon.svg">
-  <title>Crypto Sentinel Free</title>
+  <title>Crypto Sentinel · Market Intelligence</title>
   <style>
     :root {
       color-scheme: dark;
-      --bg: #0b0d12; --panel: #111827; --panel2: #151b28; --line: #293244;
-      --text: #edf2f7; --muted: #94a3b8; --good: #34d399; --warn: #fbbf24;
-      --critical: #fb7185; --info: #60a5fa;
+      --ink: #0e0c0b;
+      --surface: #171310;
+      --surface-rich: #211a16;
+      --paper: #f4efe8;
+      --paper-soft: #d8cec3;
+      --muted: #8a7f76;
+      --muted-light: #b2a69c;
+      --cinnabar: #e64a2e;
+      --cinnabar-glow: #ff6b4a;
+      --cinnabar-deep: #a83318;
+      --jade: #35a481;
+      --jade-light: #57d2aa;
+      --amber: #e7ac58;
+      --critical: #ff5d51;
+      --hairline: rgba(244, 239, 232, 0.09);
+      --hairline-strong: rgba(244, 239, 232, 0.16);
+      --glass: rgba(23, 19, 16, 0.58);
+      --glass-rich: rgba(33, 26, 22, 0.76);
+      --shadow: 0 28px 80px rgba(0, 0, 0, 0.38);
+      --serif: "Instrument Serif", "Iowan Old Style", "Palatino Linotype", Georgia, serif;
+      --mono: "IBM Plex Mono", "Cascadia Mono", "SFMono-Regular", Consolas, monospace;
+      --sans: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
     }
+
     * { box-sizing: border-box; }
-    body { margin: 0; background: var(--bg); color: var(--text); font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
-    .shell { width: min(1500px, calc(100% - 28px)); margin: 18px auto 60px; }
-    header { display: flex; align-items: center; justify-content: space-between; gap: 18px; margin-bottom: 16px; }
-    h1 { font-size: clamp(1.4rem, 2vw, 2rem); margin: 0; letter-spacing: -.03em; }
-    .sub { color: var(--muted); margin-top: 4px; font-size: .92rem; }
-    .clock { color: var(--muted); font-variant-numeric: tabular-nums; text-align: right; }
-    .controls { display: flex; flex-wrap: wrap; gap: 8px; margin: 14px 0 18px; }
-    button { border: 1px solid var(--line); background: var(--panel2); color: var(--text); border-radius: 9px; padding: 9px 12px; cursor: pointer; font-weight: 650; }
-    button:hover { border-color: #4b5e7a; }
-    button.armed { border-color: var(--good); color: var(--good); }
-    button.critical { border-color: #7f1d1d; color: #fecdd3; }
-    .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 10px; }
-    .card { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 13px; min-height: 88px; }
-    .card .name { text-transform: uppercase; letter-spacing: .08em; font-size: .75rem; color: var(--muted); }
-    .card .value { font-size: 1.15rem; font-weight: 750; margin-top: 8px; }
-    .card .detail { color: var(--muted); font-size: .8rem; margin-top: 5px; }
-    .status-dot { width: 9px; height: 9px; display: inline-block; border-radius: 50%; margin-right: 7px; background: var(--critical); box-shadow: 0 0 10px currentColor; }
-    .status-dot.good { background: var(--good); }
-    .status-dot.warn { background: var(--warn); }
-    .section { margin-top: 18px; background: var(--panel); border: 1px solid var(--line); border-radius: 12px; overflow: hidden; }
-    .section-title { padding: 13px 15px; border-bottom: 1px solid var(--line); display: flex; justify-content: space-between; align-items: center; }
-    .section-title h2 { font-size: 1rem; margin: 0; }
-    .hint { color: var(--muted); font-size: .78rem; }
+    html { scroll-behavior: smooth; }
+    body {
+      min-width: 320px;
+      margin: 0;
+      overflow-x: hidden;
+      background:
+        radial-gradient(circle at 8% -8%, rgba(230, 74, 46, 0.18), transparent 31rem),
+        radial-gradient(circle at 92% 4%, rgba(53, 164, 129, 0.12), transparent 34rem),
+        var(--ink);
+      color: var(--paper);
+      font-family: var(--sans);
+      -webkit-font-smoothing: antialiased;
+    }
+
+    body::before {
+      position: fixed;
+      z-index: -1;
+      inset: 0;
+      content: "";
+      pointer-events: none;
+      opacity: 0.18;
+      background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 180 180'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.86' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='.22'/%3E%3C/svg%3E");
+    }
+
+    button, input, select, textarea { font: inherit; }
+    button, select { color: inherit; }
+    button { cursor: pointer; }
+    a { color: inherit; }
+    ::selection { color: var(--paper); background: var(--cinnabar-deep); }
+    .mono, .eyebrow, .label, th, .pill, select, input, .data, time { font-family: var(--mono); }
+    .sr-only {
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      padding: 0;
+      margin: -1px;
+      overflow: hidden;
+      clip: rect(0, 0, 0, 0);
+      white-space: nowrap;
+      border: 0;
+    }
+    .skip-link {
+      position: fixed;
+      z-index: 100;
+      top: 10px;
+      left: 10px;
+      padding: 10px 14px;
+      border-radius: 8px;
+      color: var(--ink);
+      background: var(--paper);
+      transform: translateY(-150%);
+    }
+    .skip-link:focus { transform: translateY(0); }
+
+    .ambient {
+      position: fixed;
+      z-index: -1;
+      width: 28rem;
+      height: 28rem;
+      border-radius: 50%;
+      pointer-events: none;
+      filter: blur(90px);
+      opacity: 0.11;
+      animation: drift 18s ease-in-out infinite alternate;
+    }
+    .ambient.one { top: 24%; left: -14rem; background: var(--cinnabar); }
+    .ambient.two {
+      right: -16rem;
+      bottom: 4%;
+      background: var(--jade);
+      animation-delay: -9s;
+    }
+    @keyframes drift {
+      from { transform: translate3d(0, -1rem, 0) scale(0.94); }
+      to { transform: translate3d(3rem, 2rem, 0) scale(1.08); }
+    }
+
+    .shell {
+      width: min(1540px, calc(100% - 40px));
+      margin: 0 auto;
+      padding: 28px 0 64px;
+    }
+    .masthead {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
+      gap: 24px;
+      align-items: end;
+      margin-bottom: 24px;
+      animation: reveal 0.7s cubic-bezier(0.2, 0.8, 0.2, 1) both;
+    }
+    @keyframes reveal {
+      from { opacity: 0; transform: translateY(12px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    .brand-line {
+      display: flex;
+      gap: 12px;
+      align-items: center;
+      margin-bottom: 14px;
+    }
+    .mark {
+      display: grid;
+      width: 37px;
+      height: 37px;
+      place-items: center;
+      border: 1px solid rgba(255, 107, 74, 0.45);
+      border-radius: 50%;
+      background: rgba(230, 74, 46, 0.08);
+      box-shadow: inset 0 0 20px rgba(230, 74, 46, 0.08);
+    }
+    .mark svg { width: 22px; height: 22px; }
+    .brand-name {
+      font: 600 0.78rem/1 var(--mono);
+      letter-spacing: 0.17em;
+      text-transform: uppercase;
+    }
+    .edition {
+      padding: 4px 7px;
+      border: 1px solid var(--hairline-strong);
+      border-radius: 999px;
+      color: var(--muted-light);
+      font: 600 0.58rem/1 var(--mono);
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+    }
+    h1, h2, h3, p { margin-top: 0; }
+    h1 {
+      max-width: 800px;
+      margin-bottom: 10px;
+      font: 400 clamp(2.7rem, 6.6vw, 6.2rem)/0.88 var(--serif);
+      letter-spacing: -0.055em;
+    }
+    .headline-accent { color: var(--cinnabar-glow); font-style: italic; }
+    .lede {
+      max-width: 760px;
+      margin: 0;
+      color: var(--muted-light);
+      font-size: clamp(0.88rem, 1.2vw, 1rem);
+      line-height: 1.65;
+    }
+    .session {
+      display: grid;
+      min-width: 250px;
+      gap: 10px;
+      justify-items: end;
+      color: var(--muted-light);
+      font: 0.72rem/1.35 var(--mono);
+    }
+    .session-top { display: flex; gap: 8px; align-items: center; }
+    .pill {
+      display: inline-flex;
+      min-height: 28px;
+      gap: 7px;
+      align-items: center;
+      padding: 5px 9px;
+      border: 1px solid var(--hairline-strong);
+      border-radius: 999px;
+      color: var(--muted-light);
+      background: rgba(14, 12, 11, 0.5);
+      font-size: 0.63rem;
+      font-weight: 650;
+      letter-spacing: 0.07em;
+      text-transform: uppercase;
+    }
+    .pill.good { color: var(--jade-light); border-color: rgba(53, 164, 129, 0.38); }
+    .pill.bad { color: #ff9786; border-color: rgba(230, 74, 46, 0.42); }
+    .pill.warn { color: #f2c17b; border-color: rgba(231, 172, 88, 0.4); }
+    .dot {
+      width: 6px;
+      height: 6px;
+      flex: 0 0 auto;
+      border-radius: 50%;
+      background: currentColor;
+      box-shadow: 0 0 10px currentColor;
+    }
+    .dot.pulse { animation: pulse 2s ease-out infinite; }
+    @keyframes pulse {
+      0%, 100% { box-shadow: 0 0 0 0 currentColor; }
+      45% { box-shadow: 0 0 0 6px transparent; }
+    }
+
+    .glass {
+      border: 1px solid var(--hairline);
+      background: linear-gradient(145deg, rgba(34, 27, 23, 0.68), var(--glass));
+      box-shadow: var(--shadow);
+      backdrop-filter: blur(18px);
+      -webkit-backdrop-filter: blur(18px);
+    }
+    .command-bar {
+      position: sticky;
+      z-index: 20;
+      top: 10px;
+      display: flex;
+      gap: 8px;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 14px;
+      padding: 9px;
+      border-radius: 15px;
+      animation: reveal 0.7s 0.08s both;
+    }
+    .command-group { display: flex; flex-wrap: wrap; gap: 7px; }
+    .button {
+      min-height: 38px;
+      padding: 8px 12px;
+      border: 1px solid var(--hairline-strong);
+      border-radius: 9px;
+      color: var(--paper-soft);
+      background: rgba(244, 239, 232, 0.035);
+      font: 650 0.67rem/1 var(--mono);
+      letter-spacing: 0.025em;
+      transition: 160ms ease;
+    }
+    .button:hover { color: var(--paper); border-color: rgba(244, 239, 232, 0.3); transform: translateY(-1px); }
+    .button:active { transform: translateY(0); }
+    .button.armed, .button.success { color: var(--jade-light); border-color: rgba(53, 164, 129, 0.55); }
+    .button.warning { color: #f0c47f; border-color: rgba(231, 172, 88, 0.38); }
+    .button.critical {
+      color: #ffb0a4;
+      border-color: rgba(230, 74, 46, 0.46);
+      background: rgba(230, 74, 46, 0.07);
+    }
+    .button.icon-only { width: 38px; padding: 0; font-size: 1rem; }
+    .button[disabled] { cursor: wait; opacity: 0.55; }
+
+    .readiness-rail {
+      display: grid;
+      grid-template-columns: repeat(6, minmax(0, 1fr));
+      margin-bottom: 16px;
+      overflow: hidden;
+      border-radius: 15px;
+      animation: reveal 0.7s 0.14s both;
+    }
+    .rail-item {
+      position: relative;
+      min-height: 90px;
+      padding: 16px 17px;
+      border-right: 1px solid var(--hairline);
+    }
+    .rail-item:last-child { border-right: 0; }
+    .rail-item::after {
+      position: absolute;
+      right: 0;
+      bottom: 0;
+      left: 0;
+      height: 2px;
+      content: "";
+      opacity: 0.75;
+      background: var(--muted);
+      transform: scaleX(0);
+      transform-origin: left;
+      transition: transform 500ms ease, background 200ms ease;
+    }
+    .rail-item.good::after, .rail-item.warn::after, .rail-item.bad::after { transform: scaleX(1); }
+    .rail-item.good::after { background: var(--jade); }
+    .rail-item.warn::after { background: var(--amber); }
+    .rail-item.bad::after { background: var(--cinnabar); }
+    .rail-label {
+      display: block;
+      margin-bottom: 9px;
+      color: var(--muted);
+      font: 600 0.59rem/1 var(--mono);
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+    }
+    .rail-value {
+      overflow: hidden;
+      color: var(--paper);
+      font: 500 clamp(0.9rem, 1.4vw, 1.14rem)/1.1 var(--mono);
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    .rail-detail {
+      margin-top: 7px;
+      overflow: hidden;
+      color: var(--muted);
+      font: 0.62rem/1.2 var(--mono);
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .layout {
+      display: grid;
+      grid-template-columns: minmax(0, 1.65fr) minmax(300px, 0.75fr);
+      gap: 16px;
+      align-items: start;
+    }
+    .panel {
+      min-width: 0;
+      overflow: hidden;
+      border-radius: 18px;
+      animation: reveal 0.7s 0.18s both;
+    }
+    .panel + .panel { animation-delay: 0.23s; }
+    .panel-head {
+      display: flex;
+      min-height: 72px;
+      gap: 18px;
+      align-items: center;
+      justify-content: space-between;
+      padding: 16px 18px;
+      border-bottom: 1px solid var(--hairline);
+    }
+    .panel-title { display: flex; gap: 12px; align-items: baseline; }
+    .index {
+      color: var(--cinnabar-glow);
+      font: italic 0.92rem/1 var(--serif);
+    }
+    h2 { margin: 0; font: 400 clamp(1.25rem, 2.2vw, 1.72rem)/1 var(--serif); letter-spacing: -0.025em; }
+    h3 { margin: 0; font: 400 1.08rem/1.1 var(--serif); }
+    .panel-note { max-width: 530px; color: var(--muted); font: 0.62rem/1.45 var(--mono); text-align: right; }
+    .panel-body { padding: 16px; }
+
+    .feed-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
+    .feed-card, .market-card {
+      position: relative;
+      min-width: 0;
+      overflow: hidden;
+      border: 1px solid var(--hairline);
+      border-radius: 13px;
+      background: rgba(14, 12, 11, 0.3);
+      transition: border-color 160ms ease, transform 160ms ease, background 160ms ease;
+    }
+    button.feed-card, button.market-card {
+      width: 100%;
+      color: inherit;
+      text-align: left;
+    }
+    .feed-card:hover, .market-card:hover {
+      border-color: rgba(244, 239, 232, 0.21);
+      background: rgba(244, 239, 232, 0.035);
+      transform: translateY(-2px);
+    }
+    .feed-card { min-height: 166px; padding: 15px; }
+    .feed-top { display: flex; align-items: center; justify-content: space-between; }
+    .feed-name { font: 700 0.71rem/1 var(--mono); letter-spacing: 0.12em; text-transform: uppercase; }
+    .feed-state { display: flex; gap: 6px; align-items: center; color: var(--muted-light); font: 0.58rem/1 var(--mono); text-transform: uppercase; }
+    .feed-state.good { color: var(--jade-light); }
+    .feed-state.bad { color: #ff9382; }
+    .feed-age { margin: 24px 0 4px; font: 400 2.25rem/0.9 var(--serif); letter-spacing: -0.04em; }
+    .feed-caption { color: var(--muted); font: 0.58rem/1.3 var(--mono); text-transform: uppercase; }
+    .feed-stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; margin-top: 16px; }
+    .feed-stat { min-width: 0; padding-top: 9px; border-top: 1px solid var(--hairline); }
+    .feed-stat strong {
+      display: block;
+      overflow: hidden;
+      font: 600 0.72rem/1 var(--mono);
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    .feed-stat span { display: block; margin-top: 5px; color: var(--muted); font: 0.52rem/1 var(--mono); text-transform: uppercase; }
+
+    .ops-stack { display: grid; gap: 10px; }
+    .op-card { padding: 14px 15px; border: 1px solid var(--hairline); border-radius: 12px; background: rgba(14, 12, 11, 0.28); }
+    .op-top { display: flex; gap: 10px; align-items: center; justify-content: space-between; }
+    .op-title { color: var(--muted-light); font: 650 0.63rem/1 var(--mono); letter-spacing: 0.07em; text-transform: uppercase; }
+    .op-value { margin-top: 11px; font: 400 1.35rem/1 var(--serif); }
+    .op-detail { margin-top: 7px; color: var(--muted); font: 0.59rem/1.45 var(--mono); }
+    .meter { height: 3px; margin-top: 13px; overflow: hidden; border-radius: 99px; background: rgba(244, 239, 232, 0.08); }
+    .meter > span { display: block; height: 100%; background: var(--jade); transition: width 400ms ease; }
+
+    .wide { grid-column: 1 / -1; margin-top: 16px; }
+    .market-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+      gap: 9px;
+      padding: 14px;
+    }
+    .market-card { min-height: 158px; padding: 15px; }
+    .market-name { display: flex; align-items: center; justify-content: space-between; font: 700 0.66rem/1 var(--mono); }
+    .market-price { margin-top: 22px; font: 400 1.75rem/1 var(--serif); letter-spacing: -0.025em; }
+    .market-meta { margin-top: 6px; color: var(--muted); font: 0.56rem/1.4 var(--mono); }
+    .gauges { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-top: 16px; }
+    .gauge { min-width: 0; }
+    .gauge-head { display: flex; justify-content: space-between; color: var(--muted-light); font: 0.51rem/1 var(--mono); }
+    .gauge-track { height: 2px; margin-top: 6px; overflow: hidden; background: rgba(244, 239, 232, 0.08); }
+    .gauge-track span { display: block; height: 100%; transform-origin: left; background: var(--jade); }
+    .gauge-track span.hot { background: var(--cinnabar-glow); }
+
+    .trend-layout { display: grid; grid-template-columns: minmax(0, 1fr) 210px; gap: 16px; padding: 16px; }
+    .trend-plot {
+      position: relative;
+      min-height: 270px;
+      overflow: hidden;
+      border: 1px solid var(--hairline);
+      border-radius: 13px;
+      background:
+        linear-gradient(rgba(244, 239, 232, 0.035) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(244, 239, 232, 0.035) 1px, transparent 1px),
+        rgba(14, 12, 11, 0.26);
+      background-size: 100% 25%, 12.5% 100%;
+    }
+    .trend-plot svg { display: block; width: 100%; height: 270px; overflow: visible; }
+    .trend-empty { display: grid; min-height: 270px; place-items: center; padding: 24px; color: var(--muted); font: 0.62rem/1.6 var(--mono); text-align: center; }
+    .trend-sidebar { display: grid; align-content: start; gap: 12px; }
+    .field { display: grid; gap: 7px; }
+    .field label, .field-label { color: var(--muted); font: 600 0.55rem/1 var(--mono); letter-spacing: 0.1em; text-transform: uppercase; }
+    select, input[type="search"], textarea {
+      width: 100%;
+      border: 1px solid var(--hairline-strong);
+      border-radius: 8px;
+      outline: none;
+      color: var(--paper-soft);
+      background: rgba(14, 12, 11, 0.7);
+      transition: border-color 160ms ease, box-shadow 160ms ease;
+    }
+    select, input[type="search"] { min-height: 38px; padding: 8px 10px; font-size: 0.64rem; }
+    textarea { min-height: 112px; resize: vertical; padding: 10px; font-size: 0.75rem; line-height: 1.5; }
+    select:focus, input:focus, textarea:focus { border-color: var(--cinnabar); box-shadow: 0 0 0 3px rgba(230, 74, 46, 0.12); }
+    .trend-stat { padding: 13px; border: 1px solid var(--hairline); border-radius: 10px; }
+    .trend-stat-value { margin-top: 8px; font: 400 1.35rem/1 var(--serif); }
+    .legend { display: flex; flex-wrap: wrap; gap: 9px; }
+    .legend-item { display: flex; gap: 6px; align-items: center; color: var(--muted-light); font: 0.55rem/1 var(--mono); }
+    .legend-swatch { width: 14px; height: 2px; background: var(--cinnabar-glow); }
+
+    .history-list { display: grid; max-height: 270px; overflow-y: auto; padding: 14px 16px; }
+    .history-item { position: relative; display: grid; grid-template-columns: 110px 1fr; gap: 14px; padding: 10px 0 10px 18px; border-left: 1px solid var(--hairline-strong); }
+    .history-item::before { position: absolute; top: 15px; left: -4px; width: 7px; height: 7px; border-radius: 50%; content: ""; background: var(--jade); box-shadow: 0 0 10px rgba(53, 164, 129, 0.65); }
+    .history-item.failure::before { background: var(--cinnabar); box-shadow: 0 0 10px rgba(230, 74, 46, 0.65); }
+    .history-item.pending::before { background: var(--amber); box-shadow: 0 0 10px rgba(231, 172, 88, 0.55); }
+    .history-time { color: var(--muted); font: 0.55rem/1.35 var(--mono); }
+    .history-copy strong { display: block; font: 650 0.68rem/1.25 var(--mono); }
+    .history-copy span { display: block; margin-top: 4px; color: var(--muted); font: 0.58rem/1.45 var(--mono); }
+
+    .alert-toolbar {
+      display: grid;
+      grid-template-columns: minmax(180px, 1.4fr) repeat(5, minmax(110px, 0.7fr)) auto;
+      gap: 8px;
+      padding: 12px 14px;
+      border-bottom: 1px solid var(--hairline);
+    }
+    .export-group { display: flex; gap: 6px; align-items: end; }
     .table-wrap { overflow-x: auto; }
-    table { width: 100%; border-collapse: collapse; min-width: 900px; }
-    th, td { padding: 11px 13px; text-align: left; border-bottom: 1px solid #202839; vertical-align: top; }
-    th { color: var(--muted); font-size: .72rem; text-transform: uppercase; letter-spacing: .07em; }
-    td { font-size: .86rem; }
-    tr:last-child td { border-bottom: none; }
-    .badge { display: inline-block; border-radius: 999px; padding: 3px 8px; font-size: .72rem; font-weight: 800; text-transform: uppercase; letter-spacing: .05em; }
-    .badge.critical { color: #fecdd3; background: #4c0519; }
-    .badge.warning { color: #fde68a; background: #422006; }
-    .badge.info { color: #bfdbfe; background: #172554; }
-    .message { color: #cbd5e1; max-width: 700px; line-height: 1.45; }
-    .small { color: var(--muted); font-size: .75rem; margin-top: 4px; }
-    #connection { font-weight: 750; }
-    #connection.good { color: var(--good); }
-    #connection.bad { color: var(--critical); }
-    .empty { text-align: center; color: var(--muted); padding: 30px; }
-    @media (max-width: 700px) { .shell { width: min(100% - 16px, 1500px); margin-top: 10px; } header { align-items: flex-start; } }
+    table { width: 100%; border-collapse: collapse; min-width: 1030px; }
+    th {
+      padding: 11px 14px;
+      border-bottom: 1px solid var(--hairline);
+      color: var(--muted);
+      font-size: 0.54rem;
+      font-weight: 650;
+      letter-spacing: 0.1em;
+      text-align: left;
+      text-transform: uppercase;
+    }
+    td {
+      padding: 13px 14px;
+      border-bottom: 1px solid rgba(244, 239, 232, 0.06);
+      color: var(--paper-soft);
+      font-size: 0.76rem;
+      line-height: 1.4;
+      vertical-align: middle;
+    }
+    tbody tr { transition: background 140ms ease; }
+    tbody tr:hover { background: rgba(244, 239, 232, 0.025); }
+    tbody tr.acknowledged { opacity: 0.62; }
+    .alert-time { min-width: 132px; color: var(--muted-light); font-size: 0.61rem; }
+    .alert-title { display: block; max-width: 500px; margin-bottom: 3px; color: var(--paper); font-weight: 680; }
+    .alert-message { display: block; max-width: 580px; overflow: hidden; color: var(--muted); text-overflow: ellipsis; white-space: nowrap; }
+    .symbol { font: 700 0.75rem/1 var(--mono); }
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      padding: 5px 7px;
+      border: 1px solid var(--hairline-strong);
+      border-radius: 6px;
+      color: var(--muted-light);
+      font: 700 0.54rem/1 var(--mono);
+      letter-spacing: 0.07em;
+      text-transform: uppercase;
+    }
+    .badge.critical { color: #ffb2a5; border-color: rgba(230, 74, 46, 0.48); background: rgba(230, 74, 46, 0.1); }
+    .badge.warning { color: #f2cb8d; border-color: rgba(231, 172, 88, 0.4); background: rgba(231, 172, 88, 0.07); }
+    .badge.info { color: #8fe1c5; border-color: rgba(53, 164, 129, 0.38); background: rgba(53, 164, 129, 0.07); }
+    .row-action { min-height: 31px; padding: 6px 9px; }
+    .empty {
+      padding: 46px 24px;
+      color: var(--muted);
+      font: 0.66rem/1.55 var(--mono);
+      text-align: center;
+    }
+    .alert-footer { display: flex; align-items: center; justify-content: space-between; padding: 11px 14px; color: var(--muted); font: 0.58rem/1 var(--mono); }
+
+    dialog {
+      width: min(680px, calc(100% - 28px));
+      max-height: calc(100vh - 36px);
+      margin: auto 18px auto auto;
+      padding: 0;
+      overflow: hidden;
+      border: 1px solid var(--hairline-strong);
+      border-radius: 18px;
+      color: var(--paper);
+      background: rgba(23, 19, 16, 0.94);
+      box-shadow: -30px 0 90px rgba(0, 0, 0, 0.5);
+      backdrop-filter: blur(24px);
+    }
+    dialog::backdrop { background: rgba(4, 3, 3, 0.72); backdrop-filter: blur(5px); }
+    .drawer-head { display: flex; gap: 20px; align-items: start; justify-content: space-between; padding: 20px; border-bottom: 1px solid var(--hairline); }
+    .drawer-kicker { margin-bottom: 9px; color: var(--cinnabar-glow); font: 650 0.59rem/1 var(--mono); letter-spacing: 0.1em; text-transform: uppercase; }
+    .drawer-title { margin: 0; font: 400 2rem/1 var(--serif); }
+    .drawer-body { max-height: calc(100vh - 170px); overflow-y: auto; padding: 20px; }
+    .drawer-message { color: var(--paper-soft); font-size: 0.9rem; line-height: 1.65; }
+    .detail-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; margin: 18px 0; }
+    .detail-cell { min-width: 0; padding: 11px; border: 1px solid var(--hairline); border-radius: 9px; }
+    .detail-cell span { display: block; color: var(--muted); font: 0.52rem/1 var(--mono); text-transform: uppercase; }
+    .detail-cell strong { display: block; margin-top: 7px; overflow-wrap: anywhere; font: 650 0.67rem/1.35 var(--mono); }
+    .json-block {
+      max-height: 220px;
+      overflow: auto;
+      padding: 13px;
+      border: 1px solid var(--hairline);
+      border-radius: 9px;
+      color: var(--muted-light);
+      background: rgba(14, 12, 11, 0.6);
+      font: 0.61rem/1.55 var(--mono);
+      white-space: pre-wrap;
+      overflow-wrap: anywhere;
+    }
+    .drawer-section { margin-top: 20px; }
+    .drawer-section h3 { margin-bottom: 10px; }
+    .drawer-actions { display: flex; flex-wrap: wrap; gap: 7px; margin-top: 10px; }
+    .local-note { margin-top: 7px; color: var(--muted); font: 0.54rem/1.35 var(--mono); }
+    .receipt-list { display: grid; gap: 6px; }
+    .receipt { display: grid; grid-template-columns: 90px 1fr auto; gap: 10px; align-items: center; padding: 9px; border: 1px solid var(--hairline); border-radius: 8px; font: 0.58rem/1.35 var(--mono); }
+    .receipt .ok { color: var(--jade-light); }
+    .receipt .pending { color: #f2c17b; }
+    .receipt .failed { color: #ff9989; }
+    .toast-region { position: fixed; z-index: 80; right: 18px; bottom: 18px; display: grid; width: min(360px, calc(100% - 36px)); gap: 8px; }
+    .toast { padding: 12px 14px; border: 1px solid var(--hairline-strong); border-radius: 10px; color: var(--paper-soft); background: rgba(23, 19, 16, 0.94); box-shadow: var(--shadow); font: 0.63rem/1.45 var(--mono); animation: toast-in 180ms ease both; }
+    @keyframes toast-in { from { opacity: 0; transform: translateY(8px); } }
+
+    :focus-visible { outline: 2px solid var(--cinnabar-glow); outline-offset: 3px; }
+    @media (max-width: 1180px) {
+      .readiness-rail { grid-template-columns: repeat(3, 1fr); }
+      .rail-item:nth-child(3) { border-right: 0; }
+      .rail-item:nth-child(-n + 3) { border-bottom: 1px solid var(--hairline); }
+      .layout { grid-template-columns: 1fr; }
+      .alert-toolbar { grid-template-columns: repeat(3, 1fr); }
+      .alert-toolbar .search-field { grid-column: span 2; }
+    }
+    @media (max-width: 760px) {
+      .shell { width: min(100% - 20px, 1540px); padding-top: 16px; }
+      .masthead { grid-template-columns: 1fr; }
+      .session { min-width: 0; justify-items: start; }
+      h1 { font-size: clamp(2.8rem, 16vw, 4.7rem); }
+      .command-bar { position: static; align-items: stretch; flex-direction: column; }
+      .command-group { display: grid; grid-template-columns: repeat(2, 1fr); }
+      .command-bar > .command-group:last-child { grid-template-columns: 1fr; }
+      .command-group .button { width: 100%; }
+      .readiness-rail { grid-template-columns: repeat(2, 1fr); }
+      .rail-item, .rail-item:nth-child(3) { border-right: 1px solid var(--hairline); border-bottom: 1px solid var(--hairline); }
+      .rail-item:nth-child(2n) { border-right: 0; }
+      .rail-item:nth-last-child(-n + 2) { border-bottom: 0; }
+      .feed-grid { grid-template-columns: 1fr; }
+      .panel-head { align-items: start; flex-direction: column; }
+      .panel-note { text-align: left; }
+      .trend-layout { grid-template-columns: 1fr; }
+      .trend-sidebar { grid-template-columns: repeat(2, 1fr); }
+      .alert-toolbar { grid-template-columns: repeat(2, 1fr); }
+      .alert-toolbar .search-field { grid-column: span 2; }
+      dialog { width: 100%; max-width: none; height: min(94vh, 900px); max-height: none; margin: auto 0 0; border-radius: 18px 18px 0 0; }
+      .drawer-body { max-height: calc(94vh - 92px); }
+    }
+    @media (max-width: 480px) {
+      .trend-sidebar { grid-template-columns: 1fr; }
+      .detail-grid { grid-template-columns: 1fr; }
+      .history-item { grid-template-columns: 86px 1fr; }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      html { scroll-behavior: auto; }
+      *, *::before, *::after {
+        scroll-behavior: auto !important;
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
+      }
+    }
   </style>
 </head>
 <body>
-  <main class="shell">
-    <header>
+  <a class="skip-link" href="#main-content">Skip to dashboard</a>
+  <div class="ambient one" aria-hidden="true"></div>
+  <div class="ambient two" aria-hidden="true"></div>
+
+  <main class="shell" id="main-content">
+    <header class="masthead">
       <div>
-        <h1>Crypto Sentinel Free</h1>
-        <div class="sub">Keyless public feeds · deterministic anomaly detection · no auto-trading</div>
+        <div class="brand-line">
+          <span class="mark" aria-hidden="true">
+            <svg viewBox="0 0 32 32" fill="none">
+              <path d="M16 3.5 27 8v7.5c0 6.8-4.6 11.2-11 13-6.4-1.8-11-6.2-11-13V8l11-4.5Z" stroke="#FF6B4A" stroke-width="1.5"/>
+              <path d="m9.5 18 4-4 3 2.5 6-7" stroke="#35A481" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+          </span>
+          <span class="brand-name">Crypto Sentinel</span>
+          <span class="edition">Free · local</span>
+        </div>
+        <h1>Market anomaly <span class="headline-accent">intelligence.</span></h1>
+        <p class="lede">Keyless public feeds, deterministic detection and verified local alarms. Monitoring only—this system cannot trade, sign or withdraw.</p>
       </div>
-      <div class="clock"><div id="clock"></div><div id="connection">connecting…</div></div>
+      <div class="session" aria-label="Dashboard session">
+        <div class="session-top">
+          <span class="pill" id="deployment"><span class="dot"></span>Local instance</span>
+          <span class="pill" id="connection"><span class="dot pulse"></span>Connecting</span>
+        </div>
+        <time id="clock" aria-label="Local time"></time>
+        <span id="last-sync">Awaiting first status sample</span>
+      </div>
     </header>
 
-    <div class="controls">
-      <button id="arm">Arm browser sound</button>
-      <button id="notify">Enable browser notifications</button>
-      <button id="test-warning">Test warning</button>
-      <button id="test-critical" class="critical">Test critical</button>
+    <nav class="command-bar glass" aria-label="Alarm and dashboard controls">
+      <div class="command-group">
+        <button class="button" id="arm" type="button">Arm browser sound</button>
+        <button class="button" id="notify" type="button">Enable browser notifications</button>
+        <button class="button warning" id="test-warning" type="button">Test warning alarm</button>
+        <button class="button critical" id="test-critical" type="button">Test critical alarm</button>
+      </div>
+      <div class="command-group">
+        <button class="button icon-only" id="refresh" type="button" title="Refresh all telemetry" aria-label="Refresh all telemetry">↻</button>
+      </div>
+    </nav>
+
+    <section class="readiness-rail glass" aria-label="System readiness">
+      <div class="rail-item" id="rail-readiness">
+        <span class="rail-label">Readiness</span>
+        <div class="rail-value" id="readiness-value">Starting</div>
+        <div class="rail-detail" id="readiness-detail">Waiting for feed telemetry</div>
+      </div>
+      <div class="rail-item" id="rail-uptime">
+        <span class="rail-label">Uptime</span>
+        <div class="rail-value" id="uptime-value">—</div>
+        <div class="rail-detail" id="uptime-detail">This process</div>
+      </div>
+      <div class="rail-item" id="rail-queue">
+        <span class="rail-label">Event queue</span>
+        <div class="rail-value" id="queue-value">—</div>
+        <div class="rail-detail" id="queue-detail">Capacity not reported</div>
+      </div>
+      <div class="rail-item" id="rail-alarm">
+        <span class="rail-label">Last alarm receipt</span>
+        <div class="rail-value" id="alarm-value">Not reported</div>
+        <div class="rail-detail" id="alarm-detail">Delivery evidence pending</div>
+      </div>
+      <div class="rail-item" id="rail-checkpoint">
+        <span class="rail-label">Checkpoint</span>
+        <div class="rail-value" id="checkpoint-value">Not reported</div>
+        <div class="rail-detail" id="checkpoint-detail">Persistence telemetry pending</div>
+      </div>
+      <div class="rail-item" id="rail-stream">
+        <span class="rail-label">Live stream</span>
+        <div class="rail-value" id="stream-value">Connecting</div>
+        <div class="rail-detail" id="stream-detail">Server-sent alert channel</div>
+      </div>
+    </section>
+
+    <div class="layout">
+      <section class="panel glass" aria-labelledby="feeds-title">
+        <div class="panel-head">
+          <div class="panel-title"><span class="index">01</span><h2 id="feeds-title">Venue signals</h2></div>
+          <p class="panel-note">Click a venue to filter alert evidence. Freshness is evaluated against each venue’s configured stale limit.</p>
+        </div>
+        <div class="panel-body">
+          <div class="feed-grid" id="feed-grid" aria-live="polite">
+            <div class="empty">Waiting for exchange connections…</div>
+          </div>
+        </div>
+      </section>
+
+      <section class="panel glass" aria-labelledby="operations-title">
+        <div class="panel-head">
+          <div class="panel-title"><span class="index">02</span><h2 id="operations-title">Operations</h2></div>
+          <span class="pill">Evidence, not assumptions</span>
+        </div>
+        <div class="panel-body">
+          <div class="ops-stack" id="operations">
+            <div class="op-card">
+              <div class="op-title">Runtime telemetry</div>
+              <div class="op-value">Awaiting report</div>
+              <div class="op-detail">Task, checkpoint and alarm receipt details appear only when supplied by the backend.</div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="panel glass wide" aria-labelledby="markets-title">
+        <div class="panel-head">
+          <div class="panel-title"><span class="index">03</span><h2 id="markets-title">Market readiness</h2></div>
+          <p class="panel-note">Click a symbol to focus alerts and its persisted metric timeline. “Ready” requires a robust venue baseline.</p>
+        </div>
+        <div class="market-grid" id="market-grid">
+          <div class="empty">Waiting for detector baselines…</div>
+        </div>
+      </section>
+
+      <section class="panel glass wide" aria-labelledby="trend-title">
+        <div class="panel-head">
+          <div class="panel-title"><span class="index">04</span><h2 id="trend-title">Signal timeline</h2></div>
+          <p class="panel-note">Real persisted detector samples only. Empty charts mean telemetry has not been recorded or exposed yet.</p>
+        </div>
+        <div class="trend-layout">
+          <div class="trend-plot" id="trend-plot" aria-live="polite">
+            <div class="trend-empty">Loading persisted signal samples…</div>
+          </div>
+          <div class="trend-sidebar">
+            <div class="field">
+              <label for="trend-symbol">Symbol</label>
+              <select id="trend-symbol"><option value="">All symbols</option></select>
+            </div>
+            <div class="field">
+              <label for="trend-exchange">Venue</label>
+              <select id="trend-exchange"><option value="">All venues</option></select>
+            </div>
+            <div class="field">
+              <label for="trend-metric">Metric</label>
+              <select id="trend-metric">
+                <option value="price">Price</option>
+                <option value="return_bps">Return · bps</option>
+                <option value="return_z">Return · z</option>
+                <option value="volume_z">Volume · z</option>
+                <option value="taker_imbalance">Taker imbalance</option>
+              </select>
+            </div>
+            <div class="trend-stat">
+              <span class="field-label">Latest sample</span>
+              <div class="trend-stat-value" id="trend-latest">—</div>
+              <div class="op-detail" id="trend-range">No samples</div>
+            </div>
+            <div class="legend" id="trend-legend"></div>
+          </div>
+        </div>
+      </section>
+
+      <section class="panel glass" aria-labelledby="recovery-title">
+        <div class="panel-head">
+          <div class="panel-title"><span class="index">05</span><h2 id="recovery-title">Recovery history</h2></div>
+          <span class="pill" id="soak-state">Soak telemetry</span>
+        </div>
+        <div class="history-list" id="recovery-history">
+          <div class="empty">No recovery or soak events have been supplied.</div>
+        </div>
+      </section>
+
+      <section class="panel glass" aria-labelledby="delivery-title">
+        <div class="panel-head">
+          <div class="panel-title"><span class="index">06</span><h2 id="delivery-title">Alarm delivery</h2></div>
+          <span class="pill">Local process primary</span>
+        </div>
+        <div class="history-list" id="delivery-history">
+          <div class="empty">No alarm delivery receipts have been supplied.</div>
+        </div>
+      </section>
+
+      <section class="panel glass wide" aria-labelledby="alerts-title">
+        <div class="panel-head">
+          <div class="panel-title"><span class="index">07</span><h2 id="alerts-title">Alert evidence</h2></div>
+          <p class="panel-note">Acknowledgements and notes are stored only in this browser. They do not change detector state or suppress alarms.</p>
+        </div>
+        <div class="alert-toolbar" aria-label="Alert filters">
+          <div class="field search-field">
+            <label for="filter-search">Search</label>
+            <input id="filter-search" type="search" autocomplete="off" placeholder="Title, message, symbol…">
+          </div>
+          <div class="field">
+            <label for="filter-symbol">Symbol</label>
+            <select id="filter-symbol"><option value="">All symbols</option></select>
+          </div>
+          <div class="field">
+            <label for="filter-venue">Venue</label>
+            <select id="filter-venue"><option value="">All venues</option></select>
+          </div>
+          <div class="field">
+            <label for="filter-severity">Severity</label>
+            <select id="filter-severity">
+              <option value="">All severities</option>
+              <option value="critical">Critical</option>
+              <option value="warning">Warning</option>
+              <option value="info">Info</option>
+            </select>
+          </div>
+          <div class="field">
+            <label for="filter-category">Category</label>
+            <select id="filter-category"><option value="">All categories</option></select>
+          </div>
+          <div class="field">
+            <label for="filter-time">Time</label>
+            <select id="filter-time">
+              <option value="0">All time</option>
+              <option value="1">Last hour</option>
+              <option value="6">Last 6 hours</option>
+              <option value="24">Last 24 hours</option>
+              <option value="168">Last 7 days</option>
+            </select>
+          </div>
+          <div class="field">
+            <label for="filter-ack">Review</label>
+            <select id="filter-ack">
+              <option value="">All</option>
+              <option value="unacknowledged">Unacknowledged</option>
+              <option value="acknowledged">Acknowledged</option>
+            </select>
+          </div>
+          <div class="export-group">
+            <button class="button row-action" id="export-csv" type="button">CSV</button>
+            <button class="button row-action" id="export-json" type="button">JSON</button>
+          </div>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <caption class="sr-only">Filtered Crypto Sentinel alerts</caption>
+            <thead>
+              <tr><th>Observed</th><th>Severity</th><th>Symbol</th><th>Category</th><th>Evidence</th><th>Venue</th><th>Review</th></tr>
+            </thead>
+            <tbody id="alerts">
+              <tr><td class="empty" colspan="7">No alerts recorded yet.</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <div class="alert-footer">
+          <span id="alert-count">0 alerts</span>
+          <span>Up to 1,000 recent records · newest first</span>
+        </div>
+      </section>
     </div>
-
-    <section class="grid" id="feed-grid"></section>
-
-    <section class="section">
-      <div class="section-title">
-        <h2>Market state</h2>
-        <span class="hint">The shortest configured window is shown. “Ready” means a robust baseline exists on that venue.</span>
-      </div>
-      <section class="grid" id="market-grid"></section>
-    </section>
-
-    <section class="section">
-      <div class="section-title">
-        <h2>Recent alerts</h2>
-        <span class="hint">Local process sound remains primary; browser sound requires this page to be armed.</span>
-      </div>
-      <div class="table-wrap">
-        <table>
-          <thead><tr><th>Time</th><th>Severity</th><th>Symbol</th><th>Category</th><th>Details</th><th>Sources</th></tr></thead>
-          <tbody id="alerts"><tr><td class="empty" colspan="6">No alerts recorded yet.</td></tr></tbody>
-        </table>
-      </div>
-    </section>
   </main>
-<script>
-(() => {
-  const query = new URLSearchParams(location.search);
-  const suppliedToken = query.get('token') || '';
-  let token = suppliedToken || localStorage.getItem('cryptoSentinelToken') || '';
-  if (suppliedToken) {
-    localStorage.setItem('cryptoSentinelToken', suppliedToken);
-    query.delete('token');
-    const cleanQuery = query.toString();
-    history.replaceState(null, '', `${location.pathname}${cleanQuery ? `?${cleanQuery}` : ''}${location.hash}`);
-  }
-  const tokenQuery = token ? `?token=${encodeURIComponent(token)}` : '';
-  let audioContext = null;
-  let armed = false;
-  const alertsBody = document.getElementById('alerts');
-  const connection = document.getElementById('connection');
 
-  const headers = () => token ? {'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json'} : {'Content-Type': 'application/json'};
-  async function api(path, options={}) {
-    const response = await fetch(path, {...options, headers: {...headers(), ...(options.headers || {})}});
-    if (!response.ok) throw new Error(`${response.status} ${await response.text()}`);
-    return response.json();
-  }
+  <dialog id="alert-drawer" aria-labelledby="drawer-title">
+    <div class="drawer-head">
+      <div>
+        <div class="drawer-kicker" id="drawer-kicker">Alert evidence</div>
+        <h2 class="drawer-title" id="drawer-title">Alert details</h2>
+      </div>
+      <button class="button icon-only" id="drawer-close" type="button" aria-label="Close alert details">×</button>
+    </div>
+    <div class="drawer-body" id="drawer-content"></div>
+  </dialog>
 
-  function escapeHtml(value) {
-    return String(value ?? '').replace(/[&<>'"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[c]));
-  }
-  function fmtTime(ms) { return new Date(ms).toLocaleString([], {hour12:false}); }
-  function fmtAge(seconds) {
-    if (seconds == null) return 'no data';
-    if (seconds < 1) return '<1s ago';
-    if (seconds < 60) return `${Math.round(seconds)}s ago`;
-    return `${Math.round(seconds/60)}m ago`;
-  }
+  <div class="toast-region" id="toasts" role="status" aria-live="polite"></div>
+  <div class="sr-only" id="live-region" aria-live="assertive"></div>
 
-  function alertRow(alert) {
-    const exchanges = (alert.exchanges || []).map(escapeHtml).join(', ');
-    return `<tr data-id="${escapeHtml(alert.id)}">
-      <td>${fmtTime(alert.timestamp_ms)}</td>
-      <td><span class="badge ${escapeHtml(alert.severity)}">${escapeHtml(alert.severity)}</span></td>
-      <td><strong>${escapeHtml(alert.symbol)}</strong><div class="small">${escapeHtml(alert.direction)}</div></td>
-      <td>${escapeHtml(alert.category)}</td>
-      <td><strong>${escapeHtml(alert.title)}</strong><div class="message">${escapeHtml(alert.message)}</div></td>
-      <td>${exchanges || '—'}<div class="small">${escapeHtml(alert.source || '')}</div></td>
-    </tr>`;
-  }
+  <script>
+  (() => {
+    "use strict";
 
-  function insertAlert(alert, prepend=true) {
-    const empty = alertsBody.querySelector('.empty');
-    if (empty) alertsBody.innerHTML = '';
-    if (alertsBody.querySelector(`[data-id="${CSS.escape(alert.id)}"]`)) return false;
-    if (prepend) alertsBody.insertAdjacentHTML('afterbegin', alertRow(alert));
-    else alertsBody.insertAdjacentHTML('beforeend', alertRow(alert));
-    while (alertsBody.children.length > 200) alertsBody.lastElementChild.remove();
-    return true;
-  }
+    const query = new URLSearchParams(location.search);
+    const suppliedToken = query.get("token") || "";
+    let token = suppliedToken || localStorage.getItem("cryptoSentinelToken") || "";
+    if (suppliedToken) {
+      localStorage.setItem("cryptoSentinelToken", suppliedToken);
+      query.delete("token");
+      const cleanQuery = query.toString();
+      history.replaceState(null, "", `${location.pathname}${cleanQuery ? `?${cleanQuery}` : ""}${location.hash}`);
+    }
 
-  async function armAudio() {
-    audioContext = audioContext || new (window.AudioContext || window.webkitAudioContext)();
-    await audioContext.resume();
-    armed = true;
-    const button = document.getElementById('arm');
-    button.classList.add('armed'); button.textContent = 'Browser sound armed';
-    playPattern('info');
-  }
+    const state = {
+      status: null,
+      alerts: [],
+      filteredAlerts: [],
+      metrics: [],
+      receipts: [],
+      acknowledgements: readLocalJson("cryptoSentinelAcknowledgements", {}),
+      selectedAlertId: "",
+      eventSource: null,
+      audioContext: null,
+      audioArmed: false,
+      metricsSupported: true,
+      receiptsSupported: true,
+      lastStatusAt: 0,
+    };
 
-  function tone(freq, start, duration, gainValue=.16) {
-    const osc = audioContext.createOscillator();
-    const gain = audioContext.createGain();
-    osc.frequency.value = freq; osc.type = 'square';
-    gain.gain.setValueAtTime(0.001, start);
-    gain.gain.exponentialRampToValueAtTime(gainValue, start + .02);
-    gain.gain.exponentialRampToValueAtTime(0.001, start + duration);
-    osc.connect(gain).connect(audioContext.destination);
-    osc.start(start); osc.stop(start + duration + .02);
-  }
+    const $ = (selector) => document.querySelector(selector);
+    const alertsBody = $("#alerts");
+    const drawer = $("#alert-drawer");
+    const exchangeColors = ["#FF6B4A", "#35A481", "#F4EFE8", "#E7AC58", "#B898E8"];
 
-  function playPattern(severity) {
-    if (!armed || !audioContext) return;
-    const now = audioContext.currentTime + .03;
-    if (severity === 'critical') {
-      for (let cycle=0; cycle<3; cycle++) {
-        const base = now + cycle * 1.05;
-        tone(1100, base, .22, .22); tone(760, base+.27, .22, .22); tone(1100, base+.54, .34, .22);
+    function readLocalJson(key, fallback) {
+      try {
+        const value = JSON.parse(localStorage.getItem(key) || "");
+        return value && typeof value === "object" ? value : fallback;
+      } catch (_error) {
+        return fallback;
       }
-    } else if (severity === 'warning') {
-      tone(780, now, .25); tone(620, now+.32, .3);
-    } else {
-      tone(600, now, .12, .08);
     }
-  }
 
-  function showNotification(alert) {
-    if (Notification.permission !== 'granted') return;
-    const notification = new Notification(alert.title, {body: alert.message, icon: '/icon.svg', tag: alert.dedup_key || alert.id, renotify: alert.severity === 'critical'});
-    notification.onclick = () => { window.focus(); notification.close(); };
-  }
-
-  function handleAlert(alert) {
-    if (!insertAlert(alert, true)) return;
-    playPattern(alert.severity); showNotification(alert);
-  }
-
-  async function refreshStatus() {
-    try {
-      const status = await api('/api/status');
-      const grid = document.getElementById('feed-grid');
-      grid.innerHTML = Object.entries(status.feeds || {}).map(([name, feed]) => {
-        const age = feed.message_age_seconds;
-        const staleLimit = (status.stale_after_seconds || {})[name] || 45;
-        const state = feed.connected && age != null && age <= staleLimit ? 'good' : (feed.connected ? 'warn' : 'bad');
-        const label = state === 'good' ? 'live' : (feed.connected ? 'stale' : 'offline');
-        return `<article class="card"><div class="name"><span class="status-dot ${state}"></span>${escapeHtml(name)}</div>
-          <div class="value">${label}</div><div class="detail">${feed.trades.toLocaleString()} trades · ${feed.liquidations.toLocaleString()} liquidations<br>${fmtAge(age)} · reconnects ${feed.reconnects}</div></article>`;
-      }).join('');
-      const marketGrid = document.getElementById('market-grid');
-      marketGrid.innerHTML = (status.markets || []).map(market => {
-        const price = market.price == null ? 'warming up' : Number(market.price).toLocaleString(undefined, {maximumSignificantDigits: 9});
-        const returnText = market.median_return_bps == null ? '—' : `${(market.median_return_bps / 100).toFixed(2)}%`;
-        const returnZ = market.max_abs_return_z == null ? '—' : Number(market.max_abs_return_z).toFixed(1);
-        const volumeZ = market.max_volume_z == null ? '—' : Number(market.max_volume_z).toFixed(1);
-        const imbalance = market.median_taker_imbalance == null ? '—' : `${(market.median_taker_imbalance * 100).toFixed(0)}%`;
-        const readyTarget = Math.min(2, market.configured_venues || 0);
-        const state = readyTarget > 0 && market.ready_venues >= readyTarget ? 'good' : (market.venues_with_price ? 'warn' : 'bad');
-        return `<article class="card"><div class="name"><span class="status-dot ${state}"></span>${escapeHtml(market.symbol)}</div>
-          <div class="value">${escapeHtml(price)}</div><div class="detail">${market.window_seconds}s return ${returnText}<br>ready ${market.ready_venues}/${market.configured_venues} · return z ${returnZ} · volume z ${volumeZ} · imbalance ${imbalance}</div></article>`;
-      }).join('');
-      connection.textContent = 'dashboard live'; connection.className = 'good';
-    } catch (error) {
-      connection.textContent = String(error).includes('401') ? 'token required' : 'dashboard disconnected';
-      connection.className = 'bad';
+    function saveAcknowledgements() {
+      localStorage.setItem("cryptoSentinelAcknowledgements", JSON.stringify(state.acknowledgements));
     }
-  }
 
-  async function loadAlerts() {
-    try {
-      const data = await api('/api/alerts?limit=100');
-      alertsBody.innerHTML = '';
-      if (!data.alerts.length) alertsBody.innerHTML = '<tr><td class="empty" colspan="6">No alerts recorded yet.</td></tr>';
-      data.alerts.forEach(alert => insertAlert(alert, false));
-    } catch (error) { console.error(error); }
-  }
+    function headers(json = false) {
+      const result = token ? {"Authorization": `Bearer ${token}`} : {};
+      if (json) result["Content-Type"] = "application/json";
+      return result;
+    }
 
-  function connectEvents() {
-    const eventSource = new EventSource('/api/events' + tokenQuery);
-    eventSource.addEventListener('alert', event => handleAlert(JSON.parse(event.data)));
-    eventSource.onopen = () => { connection.textContent = 'dashboard live'; connection.className = 'good'; };
-    eventSource.onerror = () => { connection.textContent = 'event stream reconnecting'; connection.className = 'bad'; };
-  }
+    async function api(path, options = {}) {
+      const response = await fetch(path, {
+        ...options,
+        headers: {...headers(Boolean(options.body)), ...(options.headers || {})},
+      });
+      if (!response.ok) {
+        const text = await response.text();
+        const error = new Error(`${response.status} ${text}`);
+        error.status = response.status;
+        throw error;
+      }
+      return response.json();
+    }
 
-  const notifyButton = document.getElementById('notify');
-  function showNotificationPermission(permission) {
-    notifyButton.classList.toggle('armed', permission === 'granted');
-    notifyButton.textContent = permission === 'granted'
-      ? 'Browser notifications enabled'
-      : permission === 'denied'
-        ? 'Browser notifications blocked'
-        : permission === 'unavailable'
-          ? 'Browser notifications unavailable'
-          : 'Enable browser notifications';
-  }
+    function escapeHtml(value) {
+      return String(value ?? "").replace(/[&<>'"]/g, (character) => ({
+        "&": "&amp;", "<": "&lt;", ">": "&gt;", "'": "&#39;", "\"": "&quot;",
+      })[character]);
+    }
 
-  document.getElementById('arm').onclick = armAudio;
-  showNotificationPermission('Notification' in window ? Notification.permission : 'unavailable');
-  notifyButton.onclick = async () => {
-    if (!('Notification' in window)) return;
-    showNotificationPermission(await Notification.requestPermission());
-  };
-  document.getElementById('test-warning').onclick = async () => handleAlert(await api('/api/test-alert', {method:'POST', body:JSON.stringify({severity:'warning'})}));
-  document.getElementById('test-critical').onclick = async () => handleAlert(await api('/api/test-alert', {method:'POST', body:JSON.stringify({severity:'critical'})}));
-  setInterval(() => document.getElementById('clock').textContent = new Date().toLocaleString([], {hour12:false}), 1000);
-  setInterval(refreshStatus, 5000);
-  loadAlerts(); refreshStatus(); connectEvents();
-})();
-</script>
+    function finite(value) {
+      const number = Number(value);
+      return Number.isFinite(number) ? number : null;
+    }
+
+    function formatNumber(value, maximumFractionDigits = 2) {
+      const number = finite(value);
+      if (number === null) return "—";
+      return number.toLocaleString([], {maximumFractionDigits});
+    }
+
+    function formatCompact(value) {
+      const number = finite(value);
+      if (number === null) return "—";
+      return Intl.NumberFormat([], {notation: "compact", maximumFractionDigits: 1}).format(number);
+    }
+
+    function formatPrice(value) {
+      const number = finite(value);
+      if (number === null) return "—";
+      const digits = number >= 1000 ? 2 : number >= 1 ? 4 : 6;
+      return number.toLocaleString([], {maximumFractionDigits: digits});
+    }
+
+    function formatTimestamp(value) {
+      const milliseconds = finite(value);
+      if (milliseconds === null) return "Unknown time";
+      return new Date(milliseconds).toLocaleString([], {hour12: false});
+    }
+
+    function formatAge(seconds) {
+      const age = finite(seconds);
+      if (age === null) return "no data";
+      if (age < 1) return "<1 sec";
+      if (age < 60) return `${Math.round(age)} sec`;
+      if (age < 3600) return `${Math.round(age / 60)} min`;
+      return `${Math.round(age / 3600)} hr`;
+    }
+
+    function formatDuration(seconds) {
+      const value = finite(seconds);
+      if (value === null) return "—";
+      const days = Math.floor(value / 86400);
+      const hours = Math.floor((value % 86400) / 3600);
+      const minutes = Math.floor((value % 3600) / 60);
+      if (days) return `${days}d ${hours}h`;
+      if (hours) return `${hours}h ${minutes}m`;
+      return `${minutes}m ${Math.floor(value % 60)}s`;
+    }
+
+    function formatMetric(value, metric) {
+      const number = finite(value);
+      if (number === null) return "—";
+      if (metric === "price") return formatPrice(number);
+      if (metric === "return_bps") return `${number >= 0 ? "+" : ""}${number.toFixed(2)} bps`;
+      if (metric === "taker_imbalance") return `${(number * 100).toFixed(1)}%`;
+      return `${number >= 0 ? "+" : ""}${number.toFixed(2)}`;
+    }
+
+    function toast(message) {
+      const item = document.createElement("div");
+      item.className = "toast";
+      item.textContent = message;
+      $("#toasts").append(item);
+      setTimeout(() => item.remove(), 4200);
+    }
+
+    function setRail(id, value, detail, tone = "") {
+      const item = $(`#rail-${id}`);
+      $(`#${id}-value`).textContent = value;
+      $(`#${id}-detail`).textContent = detail;
+      item.classList.remove("good", "warn", "bad");
+      if (tone) item.classList.add(tone);
+    }
+
+    function overallReadiness(status) {
+      const explicit = status?.readiness?.overall ?? status?.ready;
+      if (typeof explicit === "boolean") return explicit;
+      if (typeof explicit === "string") return ["ready", "healthy", "live", "ok"].includes(explicit.toLowerCase());
+      const feeds = Object.entries(status?.feeds || {});
+      if (!feeds.length) return false;
+      return feeds.every(([name, feed]) => {
+        const age = finite(feed.latest_message_age_seconds ?? feed.message_age_seconds);
+        const limit = finite(status?.stale_after_seconds?.[name]);
+        return Boolean(feed.connected) && feed.subscription_acknowledged !== false && age !== null && (limit === null || age <= limit) && feed.ready !== false;
+      });
+    }
+
+    function checkpointDetail(checkpoint) {
+      if (!checkpoint || typeof checkpoint !== "object") return "Persistence telemetry pending";
+      const age = checkpoint.last_success_age_seconds ?? checkpoint.age_seconds ?? checkpoint.last_write_age_seconds;
+      const parts = [];
+      if (checkpoint.reason) parts.push(String(checkpoint.reason));
+      if (age != null) parts.push(`last success ${formatAge(age)} ago`);
+      if (checkpoint.last_failure_error) parts.push(`last failure: ${checkpoint.last_failure_error}`);
+      return parts.join(" · ") || (checkpoint.enabled === false ? "disabled" : "Successful-write age pending");
+    }
+
+    function deploymentRole(status) {
+      const supplied = status?.deployment?.role || status?.instance?.role || status?.role;
+      if (supplied) return String(supplied);
+      if (location.port === "8788") return "Docker shadow";
+      if (location.port === "8787" || !location.port) return "Native primary";
+      return "Local instance";
+    }
+
+    function renderStatus(status) {
+      state.status = status;
+      state.lastStatusAt = Date.now();
+      const ready = overallReadiness(status);
+      const feeds = Object.entries(status.feeds || {});
+      const role = deploymentRole(status);
+      $("#deployment").innerHTML = `<span class="dot"></span>${escapeHtml(role)}`;
+      $("#deployment").className = `pill ${role.toLowerCase().includes("shadow") ? "warn" : "good"}`;
+      $("#connection").innerHTML = `<span class="dot pulse"></span>${ready ? "Dashboard live" : "Degraded"}`;
+      $("#connection").className = `pill ${ready ? "good" : "bad"}`;
+      $("#last-sync").textContent = `Status synced ${new Date().toLocaleTimeString([], {hour12: false})}`;
+
+      const healthyFeeds = feeds.filter(([name, feed]) => {
+        const age = finite(feed.latest_message_age_seconds ?? feed.message_age_seconds);
+        const limit = finite(status.stale_after_seconds?.[name]);
+        return feed.connected && feed.subscription_acknowledged !== false && age !== null && (limit === null || age <= limit) && feed.ready !== false;
+      }).length;
+      setRail(
+        "readiness",
+        ready ? "Ready" : feeds.length ? "Degraded" : "Starting",
+        `${healthyFeeds}/${feeds.length || 0} venues fresh`,
+        ready ? "good" : feeds.length ? "bad" : "warn",
+      );
+      setRail("uptime", formatDuration(status.uptime_seconds), `Started ${formatTimestamp(status.started_ms)}`, "good");
+
+      const queueSize = finite(status.queue_size);
+      const queueCapacity = finite(status.queue_capacity);
+      const queueRatio = queueSize !== null && queueCapacity ? queueSize / queueCapacity : null;
+      setRail(
+        "queue",
+        queueSize === null ? "Not reported" : `${formatNumber(queueSize, 0)} / ${formatNumber(queueCapacity, 0)}`,
+        queueRatio === null ? "Capacity not reported" : `${(queueRatio * 100).toFixed(1)}% utilization`,
+        queueRatio === null ? "" : queueRatio > 0.8 ? "bad" : queueRatio > 0.5 ? "warn" : "good",
+      );
+
+      const checkpoint = status.checkpoint_health || status.checkpoint || status.persistence?.checkpoint;
+      if (checkpoint && typeof checkpoint === "object") {
+        const okay = checkpoint.healthy ?? checkpoint.ok;
+        const value = checkpoint.enabled === false ? "Disabled" : okay === false ? "Unhealthy" : okay ? "Current" : "Starting";
+        const detail = checkpointDetail(checkpoint);
+        setRail("checkpoint", value, detail, checkpoint.enabled === false ? "" : okay === false ? "bad" : okay ? "good" : "warn");
+      } else {
+        setRail("checkpoint", "Not reported", "Persistence telemetry pending");
+      }
+
+      renderFeeds(status);
+      renderMarkets(status);
+      renderOperations(status);
+      renderRecovery(status);
+      refreshSelectOptions();
+    }
+
+    function renderFeeds(status) {
+      const entries = Object.entries(status.feeds || {});
+      if (!entries.length) {
+        $("#feed-grid").innerHTML = `<div class="empty">No feed telemetry has been supplied.</div>`;
+        return;
+      }
+      $("#feed-grid").innerHTML = entries.map(([name, feed]) => {
+        const age = finite(feed.latest_message_age_seconds ?? feed.message_age_seconds);
+        const staleLimit = finite(status.stale_after_seconds?.[name]);
+        const symbolFreshnessLimit = finite(status.symbol_freshness_seconds) ?? staleLimit;
+        const healthy = Boolean(feed.connected) && feed.subscription_acknowledged !== false && age !== null && (staleLimit === null || age <= staleLimit) && feed.ready !== false;
+        const symbolHealth = feed.symbols && typeof feed.symbols === "object" ? Object.values(feed.symbols) : [];
+        const freshSymbols = symbolHealth.filter((symbol) => {
+          const symbolAge = finite(symbol?.message_age_seconds);
+          return Boolean(symbol?.seen_since_connect) && symbolAge !== null && (symbolFreshnessLimit === null || symbolAge <= symbolFreshnessLimit);
+        }).length;
+        const stateLabel = healthy
+          ? "live"
+          : !feed.connected
+            ? "offline"
+            : feed.subscription_acknowledged === false
+              ? "subscribing"
+              : feed.continuity_break_active
+                ? "recovering"
+                : "stale";
+        return `<button class="feed-card" type="button" data-filter-venue="${escapeHtml(name)}" aria-label="Filter alerts to ${escapeHtml(name)}">
+          <span class="feed-top">
+            <span class="feed-name">${escapeHtml(name)}</span>
+            <span class="feed-state ${healthy ? "good" : "bad"}"><span class="dot ${healthy ? "pulse" : ""}"></span>${stateLabel}</span>
+          </span>
+          <span class="feed-age">${escapeHtml(formatAge(age))}</span>
+          <span class="feed-caption">feed freshness · limit ${escapeHtml(formatAge(staleLimit))}</span>
+          <span class="feed-stats">
+            <span class="feed-stat"><strong>${escapeHtml(formatCompact(feed.trades))}</strong><span>trades</span></span>
+            <span class="feed-stat"><strong>${escapeHtml(formatCompact(feed.liquidations))}</strong><span>liquidations</span></span>
+            <span class="feed-stat"><strong>${symbolHealth.length ? `${freshSymbols}/${symbolHealth.length}` : escapeHtml(formatNumber(feed.reconnects, 0))}</strong><span>${symbolHealth.length ? "symbols" : "reconnects"}</span></span>
+          </span>
+        </button>`;
+      }).join("");
+    }
+
+    function normalizedGauge(value, maximum) {
+      const number = Math.abs(finite(value) ?? 0);
+      return Math.min(100, (number / maximum) * 100);
+    }
+
+    function renderMarkets(status) {
+      const markets = Array.isArray(status.markets) ? status.markets : [];
+      if (!markets.length) {
+        $("#market-grid").innerHTML = `<div class="empty">No market readiness telemetry has been supplied.</div>`;
+        return;
+      }
+      $("#market-grid").innerHTML = markets.map((market) => {
+        const ready = finite(market.ready_venues) ?? 0;
+        const configured = finite(market.configured_venues) ?? 0;
+        const returnBps = finite(market.median_return_bps);
+        const returnZ = finite(market.max_abs_return_z);
+        const volumeZ = finite(market.max_volume_z);
+        const imbalance = finite(market.median_taker_imbalance);
+        return `<button class="market-card" type="button" data-filter-symbol="${escapeHtml(market.symbol)}" aria-label="Focus ${escapeHtml(market.symbol)}">
+          <span class="market-name">
+            <span>${escapeHtml(market.symbol)}</span>
+            <span class="pill ${ready === configured && configured ? "good" : "warn"}">${ready}/${configured} ready</span>
+          </span>
+          <span class="market-price">${escapeHtml(formatPrice(market.price))}</span>
+          <span class="market-meta">${escapeHtml(formatNumber(market.window_seconds, 0))}s window · ${returnBps === null ? "return unavailable" : `${returnBps >= 0 ? "+" : ""}${returnBps.toFixed(2)} bps`}</span>
+          <span class="gauges">
+            <span class="gauge"><span class="gauge-head"><span>return z</span><span>${escapeHtml(formatNumber(returnZ))}</span></span><span class="gauge-track"><span class="${normalizedGauge(returnZ, 5) > 65 ? "hot" : ""}" style="width:${normalizedGauge(returnZ, 5)}%"></span></span></span>
+            <span class="gauge"><span class="gauge-head"><span>volume z</span><span>${escapeHtml(formatNumber(volumeZ))}</span></span><span class="gauge-track"><span class="${normalizedGauge(volumeZ, 6) > 65 ? "hot" : ""}" style="width:${normalizedGauge(volumeZ, 6)}%"></span></span></span>
+            <span class="gauge"><span class="gauge-head"><span>imbalance</span><span>${imbalance === null ? "—" : `${(imbalance * 100).toFixed(0)}%`}</span></span><span class="gauge-track"><span class="${normalizedGauge(imbalance, 1) > 65 ? "hot" : ""}" style="width:${normalizedGauge(imbalance, 1)}%"></span></span></span>
+          </span>
+        </button>`;
+      }).join("");
+    }
+
+    function asTaskEntries(tasks) {
+      if (Array.isArray(tasks)) {
+        return tasks.map((task, index) => [task.name || `task-${index + 1}`, task]);
+      }
+      if (tasks && typeof tasks === "object") return Object.entries(tasks);
+      return [];
+    }
+
+    function renderOperations(status) {
+      const queueSize = finite(status.queue_size);
+      const queueCapacity = finite(status.queue_capacity);
+      const queuePercent = queueSize !== null && queueCapacity ? Math.min(100, queueSize / queueCapacity * 100) : 0;
+      const tasks = asTaskEntries(status.tasks || status.runtime?.tasks || status.readiness?.tasks);
+      const healthyTasks = tasks.filter(([, task]) => typeof task === "boolean" ? task : task?.healthy ?? task?.running ?? task?.ready).length;
+      const checkpoint = status.checkpoint_health || status.checkpoint || status.persistence?.checkpoint;
+      const alarm = status.alarm_receipt || status.alarm_delivery || status.delivery;
+      const deployment = status.deployment;
+      const primary = deployment?.primary;
+      const shadow = deployment?.shadow;
+      const cards = [
+        `<div class="op-card">
+          <div class="op-top"><span class="op-title">Event queue</span><span class="pill ${queuePercent > 80 ? "bad" : queuePercent > 50 ? "warn" : "good"}">${queueCapacity ? `${queuePercent.toFixed(1)}%` : "no capacity"}</span></div>
+          <div class="op-value">${queueSize === null ? "Not reported" : `${formatNumber(queueSize, 0)} events`}</div>
+          <div class="op-detail">${queueCapacity ? `${formatNumber(queueCapacity - queueSize, 0)} slots available · high water ${formatNumber(status.queue_health?.high_water ?? status.queue_high_water, 0)} · drops ${formatNumber(status.queue_health?.drops_total ?? status.queue_drops, 0)}` : "Queue bounds are not present in this status payload."}</div>
+          <div class="meter"><span style="width:${queuePercent}%"></span></div>
+        </div>`,
+        `<div class="op-card">
+          <div class="op-top"><span class="op-title">Critical tasks</span><span class="pill ${tasks.length && healthyTasks === tasks.length ? "good" : tasks.length ? "bad" : ""}">${tasks.length ? `${healthyTasks}/${tasks.length}` : "not reported"}</span></div>
+          <div class="op-value">${tasks.length ? healthyTasks === tasks.length ? "All supervised" : "Attention required" : "Awaiting telemetry"}</div>
+          <div class="op-detail">${tasks.length ? escapeHtml(tasks.map(([name, task]) => `${name}: ${typeof task === "boolean" ? task ? "ready" : "failed" : task?.state || (task?.healthy ? "ready" : "degraded")}`).join(" · ")) : "Consumer, detector, health, checkpoint and feed task state will appear when supplied."}</div>
+        </div>`,
+        `<div class="op-card">
+          <div class="op-top"><span class="op-title">Checkpoint</span><span class="pill ${(checkpoint?.healthy ?? checkpoint?.ok) === false ? "bad" : checkpoint ? "good" : ""}">${checkpoint ? (checkpoint.healthy ?? checkpoint.ok) === false ? "failed" : checkpoint.enabled === false ? "disabled" : "observed" : "not reported"}</span></div>
+          <div class="op-value">${checkpoint ? checkpoint.last_success_ms ? formatTimestamp(checkpoint.last_success_ms) : checkpoint.last_write_ms ? formatTimestamp(checkpoint.last_write_ms) : checkpoint.state || (checkpoint.enabled === false ? "Disabled" : "Starting") : "Awaiting telemetry"}</div>
+          <div class="op-detail">${checkpoint ? escapeHtml(checkpointDetail(checkpoint)) : "No checkpoint health field is present in this status payload."}</div>
+        </div>`,
+        `<div class="op-card">
+          <div class="op-top"><span class="op-title">Alarm path</span><span class="pill ${alarm?.ok === false ? "bad" : alarm ? "good" : ""}">${alarm ? alarm.ok === false ? "failed" : "receipt observed" : "not reported"}</span></div>
+          <div class="op-value">${alarm ? escapeHtml(alarm.channel || alarm.state || "Local alarm") : "Awaiting receipt"}</div>
+          <div class="op-detail">${alarm ? escapeHtml(alarm.detail || alarm.error || (alarm.timestamp_ms ? formatTimestamp(alarm.timestamp_ms) : "Delivery telemetry supplied.")) : "Test controls still exercise the end-to-end local alarm path."}</div>
+        </div>`,
+      ];
+      if (deployment && (primary || shadow)) {
+        const primaryHealthy = Boolean(primary?.healthy);
+        const shadowHealthy = Boolean(shadow?.healthy);
+        const primaryDetail = primary?.reason || (primaryHealthy ? "ready" : "reason not reported");
+        const shadowDetail = shadow?.reason || (shadowHealthy ? "ready" : "reason not reported");
+        cards.unshift(`<div class="op-card">
+          <div class="op-top"><span class="op-title">Hybrid deployment</span><span class="pill ${primaryHealthy && shadowHealthy ? "good" : "bad"}">${escapeHtml(deployment.startup || "supervised")}</span></div>
+          <div class="op-value">Native ${primaryHealthy ? "ready" : "degraded"} · Shadow ${shadowHealthy ? "ready" : "degraded"}</div>
+          <div class="op-detail">Primary: ${escapeHtml(primaryDetail)} · Shadow: ${escapeHtml(shadowDetail)} · status age ${escapeHtml(formatAge(deployment.status_age_seconds))}</div>
+        </div>`);
+      }
+      $("#operations").innerHTML = cards.join("");
+    }
+
+    function recoveryEvents(status) {
+      const sources = [
+        status.recovery_history,
+        status.recoveries,
+        status.soak?.history,
+        status.reliability?.history,
+      ];
+      return sources.find(Array.isArray) || [];
+    }
+
+    function renderRecovery(status) {
+      const events = recoveryEvents(status);
+      const soak = status.soak || status.reliability?.soak;
+      if (soak) {
+        const duration = soak.duration_seconds ?? soak.elapsed_seconds;
+        $("#soak-state").textContent = duration == null ? soak.state || "Soak active" : `${formatDuration(duration)} observed`;
+        $("#soak-state").className = `pill ${soak.ok === false ? "bad" : "good"}`;
+      }
+      if (!events.length) {
+        $("#recovery-history").innerHTML = `<div class="empty">No recovery or soak events have been supplied.</div>`;
+        return;
+      }
+      $("#recovery-history").innerHTML = events.slice(0, 30).map((event) => {
+        const failed = event.ok === false || ["failure", "failed", "offline", "disconnected"].includes(String(event.state || event.type).toLowerCase());
+        return `<div class="history-item ${failed ? "failure" : ""}">
+          <time class="history-time">${escapeHtml(formatTimestamp(event.timestamp_ms || event.time_ms))}</time>
+          <div class="history-copy"><strong>${escapeHtml(event.title || event.state || event.type || "Recovery event")}</strong><span>${escapeHtml(event.detail || event.message || event.reason || "No additional detail supplied.")}</span></div>
+        </div>`;
+      }).join("");
+    }
+
+    function receiptTimestamp(receipt) {
+      return receipt.timestamp_ms ?? receipt.completed_ms ?? receipt.attempted_ms ?? receipt.created_ms;
+    }
+
+    function receiptPresentation(receipt) {
+      const raw = String(receipt.status || receipt.state || "").toLowerCase();
+      if (receipt.ok === true || receipt.success === true || ["sent", "delivered", "success", "ok", "played"].includes(raw)) {
+        return {kind: "success", label: "delivered"};
+      }
+      if (receipt.ok === false || receipt.success === false || raw === "failure" || raw === "failed") {
+        return {kind: "failure", label: "failed"};
+      }
+      if (raw === "attempt") return {kind: "pending", label: "trying"};
+      if (raw === "queued") return {kind: "pending", label: "pending"};
+      return {kind: "neutral", label: raw || "recorded"};
+    }
+
+    function renderReceipts() {
+      if (!state.receipts.length) {
+        $("#delivery-history").innerHTML = `<div class="empty">${state.receiptsSupported ? "No alarm delivery receipts have been recorded." : "Delivery receipt endpoint is not available yet."}</div>`;
+        setRail("alarm", "Not reported", "Delivery evidence pending");
+        return;
+      }
+      const receipts = [...state.receipts].sort((a, b) => (receiptTimestamp(b) || 0) - (receiptTimestamp(a) || 0));
+      const latest = receipts[0];
+      const latestPresentation = receiptPresentation(latest);
+      setRail(
+        "alarm",
+        latestPresentation.label[0].toUpperCase() + latestPresentation.label.slice(1),
+        `${latest.channel || latest.notifier || "alarm"} · ${formatTimestamp(receiptTimestamp(latest))}`,
+        latestPresentation.kind === "success" ? "good" : latestPresentation.kind === "failure" ? "bad" : latestPresentation.kind === "pending" ? "warn" : "",
+      );
+      $("#delivery-history").innerHTML = receipts.slice(0, 30).map((receipt) => {
+        const presentation = receiptPresentation(receipt);
+        return `<div class="history-item ${presentation.kind === "failure" ? "failure" : presentation.kind === "pending" ? "pending" : ""}">
+          <time class="history-time">${escapeHtml(formatTimestamp(receiptTimestamp(receipt)))}</time>
+          <div class="history-copy"><strong>${escapeHtml(receipt.channel || receipt.notifier || "Local alarm")} · ${presentation.label}</strong><span>${escapeHtml(receipt.detail || receipt.error || receipt.status || receipt.state || "Receipt recorded")}</span></div>
+        </div>`;
+      }).join("");
+    }
+
+    function uniqueSorted(values) {
+      return [...new Set(values.filter(Boolean).map(String))].sort((a, b) => a.localeCompare(b));
+    }
+
+    function updateSelect(id, values, label) {
+      const select = $(id);
+      const selected = select.value;
+      const options = uniqueSorted(values);
+      select.innerHTML = `<option value="">All ${escapeHtml(label)}</option>${options.map((value) => `<option value="${escapeHtml(value)}">${escapeHtml(value)}</option>`).join("")}`;
+      if (options.includes(selected)) select.value = selected;
+    }
+
+    function refreshSelectOptions() {
+      const statusSymbols = state.status?.symbols || state.status?.markets?.map((market) => market.symbol) || [];
+      const alertSymbols = state.alerts.map((alert) => alert.symbol);
+      const metricSymbols = state.metrics.map((metric) => metric.symbol);
+      updateSelect("#filter-symbol", [...statusSymbols, ...alertSymbols], "symbols");
+      updateSelect("#filter-venue", state.alerts.flatMap((alert) => [...(alert.exchanges || []), alert.source]), "venues");
+      updateSelect("#filter-category", state.alerts.map((alert) => alert.category), "categories");
+      updateSelect("#trend-symbol", [...statusSymbols, ...metricSymbols], "symbols");
+      updateSelect("#trend-exchange", state.metrics.map((metric) => metric.exchange), "venues");
+    }
+
+    function alertAcknowledged(alert) {
+      return Boolean(state.acknowledgements[alert.id]?.acknowledged);
+    }
+
+    function applyAlertFilters() {
+      const search = $("#filter-search").value.trim().toLowerCase();
+      const symbol = $("#filter-symbol").value;
+      const venue = $("#filter-venue").value;
+      const severity = $("#filter-severity").value;
+      const category = $("#filter-category").value;
+      const hours = Number($("#filter-time").value || 0);
+      const review = $("#filter-ack").value;
+      const cutoff = hours ? Date.now() - hours * 3600000 : 0;
+      state.filteredAlerts = state.alerts.filter((alert) => {
+        const haystack = [alert.title, alert.message, alert.symbol, alert.category, alert.source, ...(alert.exchanges || [])].join(" ").toLowerCase();
+        if (search && !haystack.includes(search)) return false;
+        if (symbol && alert.symbol !== symbol) return false;
+        if (venue && ![...(alert.exchanges || []), alert.source].includes(venue)) return false;
+        if (severity && alert.severity !== severity) return false;
+        if (category && alert.category !== category) return false;
+        if (cutoff && finite(alert.timestamp_ms) < cutoff) return false;
+        if (review === "acknowledged" && !alertAcknowledged(alert)) return false;
+        if (review === "unacknowledged" && alertAcknowledged(alert)) return false;
+        return true;
+      });
+      renderAlerts();
+    }
+
+    function renderAlerts() {
+      if (!state.filteredAlerts.length) {
+        alertsBody.innerHTML = `<tr><td class="empty" colspan="7">${state.alerts.length ? "No alerts match these filters." : "No alerts recorded yet."}</td></tr>`;
+      } else {
+        alertsBody.innerHTML = state.filteredAlerts.map((alert) => {
+          const acknowledged = alertAcknowledged(alert);
+          const venues = uniqueSorted([...(alert.exchanges || []), alert.source]).join(", ");
+          return `<tr class="${acknowledged ? "acknowledged" : ""}" data-alert-id="${escapeHtml(alert.id)}">
+            <td class="alert-time"><time datetime="${new Date(alert.timestamp_ms).toISOString()}">${escapeHtml(formatTimestamp(alert.timestamp_ms))}</time></td>
+            <td><span class="badge ${escapeHtml(alert.severity)}">${escapeHtml(alert.severity)}</span></td>
+            <td><span class="symbol">${escapeHtml(alert.symbol)}</span><div class="op-detail">${escapeHtml(alert.direction || "mixed")}</div></td>
+            <td><span class="mono">${escapeHtml(alert.category)}</span></td>
+            <td><span class="alert-title">${escapeHtml(alert.title)}</span><span class="alert-message">${escapeHtml(alert.message)}</span></td>
+            <td><span class="mono">${escapeHtml(venues || "—")}</span></td>
+            <td><button class="button row-action" type="button" data-open-alert="${escapeHtml(alert.id)}">${acknowledged ? "Reviewed" : "Inspect"}</button></td>
+          </tr>`;
+        }).join("");
+      }
+      $("#alert-count").textContent = `${state.filteredAlerts.length} of ${state.alerts.length} alert${state.alerts.length === 1 ? "" : "s"}`;
+    }
+
+    function insertAlert(alert, prepend = true) {
+      if (!alert?.id || state.alerts.some((item) => item.id === alert.id)) return false;
+      if (prepend) state.alerts.unshift(alert);
+      else state.alerts.push(alert);
+      state.alerts.sort((a, b) => (b.timestamp_ms || 0) - (a.timestamp_ms || 0));
+      state.alerts = state.alerts.slice(0, 1000);
+      refreshSelectOptions();
+      applyAlertFilters();
+      return true;
+    }
+
+    function receiptRowsForAlert(alertId) {
+      return state.receipts.filter((receipt) => receipt.alert_id === alertId || receipt.alertId === alertId);
+    }
+
+    function openAlert(alertId) {
+      const alert = state.alerts.find((item) => item.id === alertId);
+      if (!alert) return;
+      state.selectedAlertId = alertId;
+      const note = state.acknowledgements[alertId] || {};
+      const receipts = receiptRowsForAlert(alertId);
+      $("#drawer-kicker").textContent = `${alert.severity} · ${formatTimestamp(alert.timestamp_ms)}`;
+      $("#drawer-title").textContent = alert.title;
+      $("#drawer-content").innerHTML = `
+        <p class="drawer-message">${escapeHtml(alert.message)}</p>
+        <div class="detail-grid">
+          <div class="detail-cell"><span>Symbol</span><strong>${escapeHtml(alert.symbol)}</strong></div>
+          <div class="detail-cell"><span>Category</span><strong>${escapeHtml(alert.category)}</strong></div>
+          <div class="detail-cell"><span>Direction</span><strong>${escapeHtml(alert.direction || "mixed")}</strong></div>
+          <div class="detail-cell"><span>Venues</span><strong>${escapeHtml(uniqueSorted([...(alert.exchanges || []), alert.source]).join(", ") || "—")}</strong></div>
+          <div class="detail-cell"><span>Alert ID</span><strong>${escapeHtml(alert.id)}</strong></div>
+          <div class="detail-cell"><span>Dedup key</span><strong>${escapeHtml(alert.dedup_key || "—")}</strong></div>
+        </div>
+        <div class="drawer-section">
+          <h3>Detector metrics</h3>
+          <pre class="json-block" id="drawer-metrics"></pre>
+        </div>
+        <div class="drawer-section">
+          <h3>Delivery receipts</h3>
+          <div class="receipt-list">${receipts.length ? receipts.map((receipt) => {
+            const presentation = receiptPresentation(receipt);
+            return `<div class="receipt"><span>${escapeHtml(receipt.channel || receipt.notifier || "alarm")}</span><span class="${presentation.kind === "success" ? "ok" : presentation.kind === "failure" ? "failed" : "pending"}">${presentation.label}</span><time>${escapeHtml(formatTimestamp(receiptTimestamp(receipt)))}</time></div>`;
+          }).join("") : `<div class="op-detail">No delivery receipt is associated with this alert.</div>`}</div>
+        </div>
+        <div class="drawer-section">
+          <h3>Operator review</h3>
+          <label class="field-label" for="alert-note">Private browser note</label>
+          <textarea id="alert-note" maxlength="2000" placeholder="Record what you checked or why this alert matters.">${escapeHtml(note.note || "")}</textarea>
+          <div class="drawer-actions">
+            <button class="button ${note.acknowledged ? "success" : ""}" id="toggle-ack" type="button">${note.acknowledged ? "Mark unreviewed" : "Acknowledge alert"}</button>
+            <button class="button" id="save-note" type="button">Save note</button>
+          </div>
+          <p class="local-note">Stored only in this browser profile. Acknowledging does not mute, suppress or alter future alarms.</p>
+        </div>`;
+      $("#drawer-metrics").textContent = JSON.stringify(alert.metrics || {}, null, 2);
+      $("#toggle-ack").addEventListener("click", toggleSelectedAcknowledgement);
+      $("#save-note").addEventListener("click", saveSelectedNote);
+      if (!drawer.open) drawer.showModal();
+    }
+
+    function toggleSelectedAcknowledgement() {
+      const current = state.acknowledgements[state.selectedAlertId] || {};
+      state.acknowledgements[state.selectedAlertId] = {
+        ...current,
+        acknowledged: !current.acknowledged,
+        updated_ms: Date.now(),
+      };
+      saveAcknowledgements();
+      applyAlertFilters();
+      openAlert(state.selectedAlertId);
+      toast(state.acknowledgements[state.selectedAlertId].acknowledged ? "Alert acknowledged locally." : "Alert marked unreviewed.");
+    }
+
+    function saveSelectedNote() {
+      const current = state.acknowledgements[state.selectedAlertId] || {};
+      state.acknowledgements[state.selectedAlertId] = {
+        ...current,
+        note: $("#alert-note").value.slice(0, 2000),
+        updated_ms: Date.now(),
+      };
+      saveAcknowledgements();
+      toast("Private browser note saved.");
+    }
+
+    async function loadAlerts() {
+      try {
+        const payload = await api("/api/alerts?limit=1000");
+        state.alerts = Array.isArray(payload.alerts) ? payload.alerts : [];
+        state.alerts.sort((a, b) => (b.timestamp_ms || 0) - (a.timestamp_ms || 0));
+        refreshSelectOptions();
+        applyAlertFilters();
+      } catch (error) {
+        handleApiError(error, "Alert history");
+      }
+    }
+
+    async function refreshStatus() {
+      try {
+        renderStatus(await api("/api/status"));
+      } catch (error) {
+        $("#connection").innerHTML = `<span class="dot"></span>Disconnected`;
+        $("#connection").className = "pill bad";
+        $("#last-sync").textContent = error.status === 401 ? "Dashboard token required" : "Status refresh failed";
+        setRail("readiness", "Unavailable", error.status === 401 ? "Authentication required" : "Status endpoint unreachable", "bad");
+      }
+    }
+
+    async function loadMetrics() {
+      if (!state.metricsSupported) return;
+      try {
+        const since = Date.now() - 24 * 3600000;
+        const payload = await api(`/api/metrics?since_ms=${since}&limit=2000`);
+        state.metrics = Array.isArray(payload.metrics) ? payload.metrics : [];
+        refreshSelectOptions();
+        renderTrend();
+      } catch (error) {
+        if (error.status === 404 || error.status === 501) {
+          state.metricsSupported = false;
+          renderTrend();
+        } else {
+          handleApiError(error, "Metric history");
+        }
+      }
+    }
+
+    async function loadReceipts() {
+      if (!state.receiptsSupported) return;
+      try {
+        const payload = await api("/api/delivery-receipts?limit=200");
+        state.receipts = Array.isArray(payload.receipts) ? payload.receipts : [];
+        renderReceipts();
+      } catch (error) {
+        if (error.status === 404 || error.status === 501) {
+          state.receiptsSupported = false;
+          renderReceipts();
+        } else {
+          handleApiError(error, "Delivery receipts");
+        }
+      }
+    }
+
+    function handleApiError(error, label) {
+      if (error.status === 401) {
+        toast(`${label}: dashboard token required.`);
+      } else {
+        console.error(`${label} failed`, error);
+      }
+    }
+
+    function renderTrend() {
+      const metricName = $("#trend-metric").value;
+      const symbol = $("#trend-symbol").value;
+      const exchange = $("#trend-exchange").value;
+      const rows = state.metrics
+        .filter((item) => (!symbol || item.symbol === symbol) && (!exchange || item.exchange === exchange))
+        .filter((item) => finite(item.timestamp_ms) !== null && finite(item[metricName]) !== null)
+        .sort((a, b) => a.timestamp_ms - b.timestamp_ms)
+        .slice(-600);
+
+      if (!rows.length) {
+        $("#trend-plot").innerHTML = `<div class="trend-empty">${state.metricsSupported ? "No persisted samples match this view yet." : "Metric history endpoint is not available yet. Live readiness above remains active."}</div>`;
+        $("#trend-latest").textContent = "—";
+        $("#trend-range").textContent = "No samples";
+        $("#trend-legend").innerHTML = "";
+        return;
+      }
+
+      const grouped = Object.groupBy ? Object.groupBy(rows, (item) => item.exchange || "aggregate") : rows.reduce((groups, item) => {
+        const key = item.exchange || "aggregate";
+        (groups[key] ||= []).push(item);
+        return groups;
+      }, {});
+      const allValues = rows.map((row) => finite(row[metricName]));
+      const minTime = Math.min(...rows.map((row) => row.timestamp_ms));
+      const maxTime = Math.max(...rows.map((row) => row.timestamp_ms));
+      let minValue = Math.min(...allValues);
+      let maxValue = Math.max(...allValues);
+      if (minValue === maxValue) {
+        const padding = Math.abs(minValue || 1) * 0.05;
+        minValue -= padding;
+        maxValue += padding;
+      }
+      const width = 900;
+      const height = 270;
+      const padX = 24;
+      const padY = 24;
+      const x = (time) => padX + ((time - minTime) / Math.max(1, maxTime - minTime)) * (width - padX * 2);
+      const y = (value) => height - padY - ((value - minValue) / Math.max(1e-12, maxValue - minValue)) * (height - padY * 2);
+      const lines = Object.entries(grouped).map(([name, items], index) => {
+        const color = exchangeColors[index % exchangeColors.length];
+        const points = items.map((item) => `${x(item.timestamp_ms).toFixed(1)},${y(item[metricName]).toFixed(1)}`).join(" ");
+        return `<polyline points="${points}" fill="none" stroke="${color}" stroke-width="2" vector-effect="non-scaling-stroke" stroke-linecap="round" stroke-linejoin="round" opacity="0.92"/>`;
+      }).join("");
+      const zeroLine = minValue < 0 && maxValue > 0 ? `<line x1="${padX}" x2="${width - padX}" y1="${y(0)}" y2="${y(0)}" stroke="rgba(244,239,232,.22)" stroke-dasharray="5 7"/>` : "";
+      $("#trend-plot").innerHTML = `<svg viewBox="0 0 ${width} ${height}" role="img" aria-label="${escapeHtml(metricName)} timeline from ${escapeHtml(formatTimestamp(minTime))} to ${escapeHtml(formatTimestamp(maxTime))}">${zeroLine}${lines}</svg>`;
+      const latest = rows.at(-1);
+      $("#trend-latest").textContent = formatMetric(latest[metricName], metricName);
+      $("#trend-range").textContent = `${formatMetric(minValue, metricName)} to ${formatMetric(maxValue, metricName)} · ${rows.length} samples`;
+      $("#trend-legend").innerHTML = Object.keys(grouped).map((name, index) => `<span class="legend-item"><span class="legend-swatch" style="background:${exchangeColors[index % exchangeColors.length]}"></span>${escapeHtml(name)}</span>`).join("");
+    }
+
+    function connectEvents() {
+      if (state.eventSource) state.eventSource.close();
+      const streamQuery = token ? `?token=${encodeURIComponent(token)}` : "";
+      const events = new EventSource(`/api/events${streamQuery}`);
+      state.eventSource = events;
+      setRail("stream", "Connecting", "Opening alert event stream", "warn");
+      events.onopen = () => setRail("stream", "Connected", "Real-time alert channel active", "good");
+      events.addEventListener("alert", (event) => {
+        try {
+          handleAlert(JSON.parse(event.data));
+        } catch (error) {
+          console.error("Invalid alert event", error);
+        }
+      });
+      events.onerror = () => setRail("stream", "Reconnecting", "Event stream retry in progress", "warn");
+    }
+
+    async function armAudio() {
+      state.audioContext ||= new (window.AudioContext || window.webkitAudioContext)();
+      await state.audioContext.resume();
+      state.audioArmed = true;
+      $("#arm").classList.add("armed");
+      $("#arm").textContent = "Browser sound armed";
+      playPattern("info");
+      toast("Browser sound is armed for this open page.");
+    }
+
+    function tone(frequency, start, duration, gainValue = 0.14) {
+      const oscillator = state.audioContext.createOscillator();
+      const gain = state.audioContext.createGain();
+      oscillator.frequency.value = frequency;
+      oscillator.type = "sine";
+      gain.gain.setValueAtTime(0.001, start);
+      gain.gain.exponentialRampToValueAtTime(gainValue, start + 0.025);
+      gain.gain.exponentialRampToValueAtTime(0.001, start + duration);
+      oscillator.connect(gain).connect(state.audioContext.destination);
+      oscillator.start(start);
+      oscillator.stop(start + duration + 0.03);
+    }
+
+    function playPattern(severity) {
+      if (!state.audioArmed || !state.audioContext) return;
+      const now = state.audioContext.currentTime + 0.03;
+      if (severity === "critical") {
+        for (let cycle = 0; cycle < 3; cycle += 1) {
+          const base = now + cycle * 1.05;
+          tone(1100, base, 0.22, 0.2);
+          tone(760, base + 0.27, 0.22, 0.2);
+          tone(1100, base + 0.54, 0.34, 0.2);
+        }
+      } else if (severity === "warning") {
+        tone(780, now, 0.25);
+        tone(620, now + 0.32, 0.3);
+      } else {
+        tone(600, now, 0.12, 0.08);
+      }
+    }
+
+    function showNotification(alert) {
+      if (!("Notification" in window) || Notification.permission !== "granted") return;
+      const notification = new Notification(alert.title, {
+        body: alert.message,
+        icon: "/icon.svg",
+        tag: alert.dedup_key || alert.id,
+        renotify: alert.severity === "critical",
+      });
+      notification.onclick = () => {
+        window.focus();
+        openAlert(alert.id);
+        notification.close();
+      };
+    }
+
+    function showNotificationPermission(permission) {
+      const button = $("#notify");
+      button.classList.remove("armed");
+      if (!("Notification" in window)) {
+        button.textContent = "Browser notifications unavailable";
+        button.disabled = true;
+        return;
+      }
+      if (permission === "granted") {
+        button.textContent = "Browser notifications enabled";
+        button.classList.add("armed");
+      } else if (permission === "denied") {
+        button.textContent = "Browser notifications blocked";
+      } else {
+        button.textContent = "Enable browser notifications";
+      }
+    }
+
+    function handleAlert(alert) {
+      if (!insertAlert(alert, true)) return;
+      playPattern(alert.severity);
+      showNotification(alert);
+      $("#live-region").textContent = `${alert.severity} alert: ${alert.title}`;
+      if (alert.severity === "critical") toast(`Critical alert: ${alert.title}`);
+      setTimeout(loadReceipts, 800);
+    }
+
+    async function testAlarm(severity, button) {
+      const original = button.textContent;
+      button.disabled = true;
+      button.textContent = `Testing ${severity}…`;
+      try {
+        const alert = await api("/api/test-alert", {
+          method: "POST",
+          body: JSON.stringify({severity}),
+        });
+        handleAlert(alert);
+        toast(`${severity[0].toUpperCase()}${severity.slice(1)} alarm test dispatched.`);
+      } catch (error) {
+        toast(`Alarm test failed: ${error.message}`);
+      } finally {
+        button.disabled = false;
+        button.textContent = original;
+      }
+    }
+
+    function csvCell(value) {
+      let text = Array.isArray(value) ? value.join("|") : typeof value === "object" && value !== null ? JSON.stringify(value) : String(value ?? "");
+      if (/^[=+\-@]/.test(text)) text = `'${text}`;
+      return `"${text.replaceAll("\"", "\"\"")}"`;
+    }
+
+    function download(filename, type, content) {
+      const blob = new Blob([content], {type});
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = filename;
+      document.body.append(link);
+      link.click();
+      link.remove();
+      setTimeout(() => URL.revokeObjectURL(url), 0);
+    }
+
+    function exportJson() {
+      download(`crypto-sentinel-alerts-${Date.now()}.json`, "application/json", JSON.stringify(state.filteredAlerts, null, 2));
+    }
+
+    function exportCsv() {
+      const fields = ["timestamp_ms", "severity", "symbol", "category", "direction", "title", "message", "exchanges", "source", "id"];
+      const rows = [fields.map(csvCell).join(","), ...state.filteredAlerts.map((alert) => fields.map((field) => csvCell(alert[field])).join(","))];
+      download(`crypto-sentinel-alerts-${Date.now()}.csv`, "text/csv;charset=utf-8", rows.join("\r\n"));
+    }
+
+    async function refreshAll() {
+      $("#refresh").disabled = true;
+      await Promise.allSettled([refreshStatus(), loadAlerts(), loadMetrics(), loadReceipts()]);
+      $("#refresh").disabled = false;
+      toast("Dashboard telemetry refreshed.");
+    }
+
+    $("#arm").addEventListener("click", () => armAudio().catch((error) => toast(`Could not arm audio: ${error.message}`)));
+    $("#notify").addEventListener("click", async () => {
+      if (!("Notification" in window)) return;
+      showNotificationPermission(await Notification.requestPermission());
+    });
+    $("#test-warning").addEventListener("click", (event) => testAlarm("warning", event.currentTarget));
+    $("#test-critical").addEventListener("click", (event) => testAlarm("critical", event.currentTarget));
+    $("#refresh").addEventListener("click", refreshAll);
+    $("#drawer-close").addEventListener("click", () => drawer.close());
+    drawer.addEventListener("click", (event) => {
+      if (event.target === drawer) drawer.close();
+    });
+    alertsBody.addEventListener("click", (event) => {
+      const button = event.target.closest("[data-open-alert]");
+      if (button) openAlert(button.dataset.openAlert);
+    });
+    $("#feed-grid").addEventListener("click", (event) => {
+      const card = event.target.closest("[data-filter-venue]");
+      if (!card) return;
+      $("#filter-venue").value = card.dataset.filterVenue;
+      applyAlertFilters();
+      document.querySelector("#alerts-title").scrollIntoView({behavior: "smooth"});
+    });
+    $("#market-grid").addEventListener("click", (event) => {
+      const card = event.target.closest("[data-filter-symbol]");
+      if (!card) return;
+      const symbol = card.dataset.filterSymbol;
+      $("#filter-symbol").value = symbol;
+      $("#trend-symbol").value = symbol;
+      applyAlertFilters();
+      renderTrend();
+    });
+    ["#filter-search", "#filter-symbol", "#filter-venue", "#filter-severity", "#filter-category", "#filter-time", "#filter-ack"].forEach((id) => {
+      $(id).addEventListener(id === "#filter-search" ? "input" : "change", applyAlertFilters);
+    });
+    ["#trend-symbol", "#trend-exchange", "#trend-metric"].forEach((id) => $(id).addEventListener("change", renderTrend));
+    $("#export-json").addEventListener("click", exportJson);
+    $("#export-csv").addEventListener("click", exportCsv);
+
+    showNotificationPermission("Notification" in window ? Notification.permission : "unavailable");
+    setInterval(() => {
+      $("#clock").textContent = new Date().toLocaleString([], {hour12: false});
+      if (state.lastStatusAt && Date.now() - state.lastStatusAt > 15000) {
+        $("#connection").className = "pill warn";
+        $("#connection").innerHTML = `<span class="dot pulse"></span>Status delayed`;
+      }
+    }, 1000);
+    setInterval(refreshStatus, 5000);
+    setInterval(loadMetrics, 30000);
+    setInterval(loadReceipts, 15000);
+    setInterval(loadAlerts, 60000);
+
+    $("#clock").textContent = new Date().toLocaleString([], {hour12: false});
+    applyAlertFilters();
+    connectEvents();
+    refreshAll();
+  })();
+  </script>
 </body>
 </html>
