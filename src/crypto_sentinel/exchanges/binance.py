@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 import json
 from typing import Any
 
@@ -23,15 +24,36 @@ class BinanceFeed(BaseFeed):
     async def stream(self, session: ClientSession) -> None:
         if not self.symbol_map:
             raise ValueError("no Binance symbols configured")
+        topics = [
+            topic
+            for symbol in self.symbol_map
+            for topic in (
+                f"{symbol.lower()}@aggTrade",
+                f"{symbol.lower()}@forceOrder",
+            )
+        ]
         async with session.ws_connect(self._url(), heartbeat=120, autoclose=True) as ws:
             self.health.connected(self.name)
+            # Binance combined-stream subscriptions are encoded in the URL and
+            # do not have a separate acknowledgement frame.
+            self.health.expect_subscriptions(self.name, topics)
+            self.health.acknowledge_subscriptions(self.name)
+            self.start_market_watchdog()
             self.log.info("connected with %d symbols", len(self.symbol_map))
-            async for message in ws:
+            while not self.stop_event.is_set():
+                try:
+                    message = await asyncio.wait_for(
+                        ws.receive(), timeout=self.receive_timeout_seconds
+                    )
+                except TimeoutError:
+                    self.assert_market_flow()
+                    continue
                 if message.type == WSMsgType.TEXT:
                     payload = json.loads(message.data)
                     event = self.parse_message(payload)
                     if event is not None:
                         self.emit(event)
+                    self.assert_market_flow()
                 elif message.type in {WSMsgType.CLOSE, WSMsgType.CLOSED, WSMsgType.ERROR}:
                     break
 
@@ -49,7 +71,9 @@ class BinanceFeed(BaseFeed):
             price = float(data["p"])
             quantity = float(data["q"])
             timestamp_ms = int(data.get("T") or data.get("E"))
-            buyer_is_maker = bool(data.get("m"))
+            buyer_is_maker = data.get("m")
+            if not isinstance(buyer_is_maker, bool):
+                return None
             event_id = f"binance:trade:{exchange_symbol}:{data.get('a', timestamp_ms)}"
             return Trade(
                 exchange=self.name,

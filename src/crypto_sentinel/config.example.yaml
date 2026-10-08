@@ -26,16 +26,20 @@ symbols:
 exchanges:
   binance:
     enabled: true
+    # Feed-wide timeout with no valid trade/liquidation on the socket.
+    # A single quiet symbol does not trigger reconnect.
     stale_after_seconds: 45
     reconnect_min_seconds: 1
     reconnect_max_seconds: 60
   bybit:
     enabled: true
+    # Feed-wide timeout with no valid trade/liquidation on the socket.
     stale_after_seconds: 45
     reconnect_min_seconds: 1
     reconnect_max_seconds: 60
   okx:
     enabled: true
+    # Feed-wide timeout with no valid trade/liquidation on the socket.
     stale_after_seconds: 45
     reconnect_min_seconds: 1
     reconnect_max_seconds: 60
@@ -49,6 +53,12 @@ detector:
   freshness_seconds: 30
   minimum_window_quote_volume: 100000
   emergency_absolute_multiplier: 1.75
+  # Explicit feed/process/clock breaks must individually stay within this
+  # ceiling; an active break is always fail-closed. Normal trade silence does
+  # not create a break.
+  minimum_window_coverage: 0.8
+  maximum_data_gap_seconds: 15
+  max_future_skew_seconds: 5
   windows:
     - seconds: 60
       warning:
@@ -93,7 +103,8 @@ dashboard:
   host: 127.0.0.1
   port: 8787
   open_browser: true
-  access_token: ${DASHBOARD_TOKEN:-}
+  # Required even on loopback. Store the generated value outside this file.
+  access_token: ${DASHBOARD_TOKEN}
   ingest_token: ${INGEST_TOKEN:-}
 
 notifiers:

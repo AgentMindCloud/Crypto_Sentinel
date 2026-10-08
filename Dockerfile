@@ -18,6 +18,6 @@ VOLUME ["/data"]
 EXPOSE 8787
 
 HEALTHCHECK --interval=30s --timeout=5s --start-period=90s --retries=3 \
-  CMD ["python", "-c", "import json,os,urllib.request; token=os.environ['DASHBOARD_TOKEN']; req=urllib.request.Request('http://127.0.0.1:8787/api/status',headers={'Authorization':'Bearer '+token}); data=json.load(urllib.request.urlopen(req,timeout=3)); feeds=data['feeds']; stale=data['stale_after_seconds']; assert feeds and all(v['connected'] and v['message_age_seconds'] is not None and 0 <= v['message_age_seconds'] <= stale[k] for k,v in feeds.items())"]
+  CMD ["python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8787/api/healthz',timeout=3).read()"]
 
 CMD ["python", "-m", "crypto_sentinel", "--config", "/config/config.yaml", "run"]

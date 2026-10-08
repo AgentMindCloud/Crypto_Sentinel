@@ -2,9 +2,11 @@ from __future__ import annotations
 
 import asyncio
 import contextlib
+import hashlib
 import hmac
 import json
 import logging
+import re
 from collections.abc import Awaitable, Callable
 from pathlib import Path
 from typing import Any
@@ -13,16 +15,23 @@ from urllib.parse import urlsplit
 from aiohttp import web
 
 from crypto_sentinel.config import DashboardConfig
+from crypto_sentinel.integration import MarketFeed
 from crypto_sentinel.models import Alert
 from crypto_sentinel.persistence import Database
+
+
+class AlarmDeliveryUnavailable(RuntimeError):
+    """Required local-alarm admission failed for a dashboard write request."""
 
 
 async def _on_response_prepare(request: web.Request, response: web.StreamResponse) -> None:
     # on_response_prepare runs before headers are sent for ordinary responses and long-lived SSE.
     response.headers.setdefault("X-Content-Type-Options", "nosniff")
     response.headers.setdefault("X-Frame-Options", "DENY")
+    response.headers.setdefault("X-Robots-Tag", "noindex, nofollow")
     response.headers.setdefault("Referrer-Policy", "no-referrer")
     response.headers.setdefault("Cross-Origin-Resource-Policy", "same-origin")
+    response.headers.setdefault("Cross-Origin-Opener-Policy", "same-origin")
     response.headers.setdefault(
         "Permissions-Policy",
         "camera=(), microphone=(), geolocation=(), payment=()",
@@ -31,8 +40,9 @@ async def _on_response_prepare(request: web.Request, response: web.StreamRespons
         "Content-Security-Policy",
         "default-src 'self'; script-src 'self' 'unsafe-inline'; "
         "style-src 'self' 'unsafe-inline'; img-src 'self' data:; "
-        "connect-src 'self'; object-src 'none'; base-uri 'none'; "
-        "frame-ancestors 'none'; form-action 'none'",
+        "font-src 'self' data:; connect-src 'self'; manifest-src 'self'; "
+        "object-src 'none'; base-uri 'none'; frame-ancestors 'none'; "
+        "form-action 'none'; worker-src 'none'",
     )
     if request.path == "/" or request.path.startswith("/api/"):
         response.headers.setdefault("Cache-Control", "no-store")
@@ -72,6 +82,7 @@ class DashboardServer:
     ) -> None:
         self.config = config
         self.database = database
+        self.market_feed = MarketFeed(database.path) if config.integration_token else None
         self.broker = broker
         self.status_provider = status_provider
         self.ingest_handler = ingest_handler
@@ -91,7 +102,12 @@ class DashboardServer:
                 web.get("/icon.svg", self.icon),
                 web.get("/api/healthz", self.healthz),
                 web.get("/api/status", self.status),
+                web.get("/api/integration/market-feed", self.integration_feed),
+                web.get("/api/integration/identity", self.integration_identity),
+                web.get("/api/integration/status", self.integration_status),
                 web.get("/api/alerts", self.alerts),
+                web.get("/api/metrics", self.metrics),
+                web.get("/api/delivery-receipts", self.delivery_receipts),
                 web.get("/api/events", self.events),
                 web.post("/api/test-alert", self.test_alert),
                 web.post("/api/ingest", self.ingest),
@@ -116,8 +132,8 @@ class DashboardServer:
         return request.headers.get("X-Access-Token", "") or request.query.get("token", "")
 
     def _authorized(self, request: web.Request, expected: str) -> bool:
-        if not expected:
-            return True
+        if not expected or not expected.strip():
+            return False
         provided = self._provided_token(request)
         return bool(provided) and hmac.compare_digest(provided, expected)
 
@@ -128,7 +144,7 @@ class DashboardServer:
     @staticmethod
     def _require_same_origin(request: web.Request) -> None:
         # Native integrations normally omit browser fetch headers. Browser-originated state
-        # changes must come from this dashboard, even when loopback auth is intentionally empty.
+        # changes must come from this dashboard in addition to presenting a valid token.
         if request.headers.get("Sec-Fetch-Site", "").lower() == "cross-site":
             raise web.HTTPForbidden(text="cross-site request rejected")
         origin = request.headers.get("Origin")
@@ -152,7 +168,70 @@ class DashboardServer:
         return web.FileResponse(self.static_dir / "icon.svg")
 
     async def healthz(self, _request: web.Request) -> web.Response:
-        return web.json_response({"ok": True})
+        ready, state = _status_readiness(self.status_provider())
+        return web.json_response(
+            {"ok": ready, "state": state},
+            status=200 if ready else 503,
+        )
+
+    def _require_integration_auth(self, request: web.Request) -> None:
+        # Native local connector only: fixed Host, no browser origin or query tokens.
+        expected_host = f"{self.config.host}:{self.config.port}"
+        if request.host.lower() != expected_host.lower() or request.headers.get("Origin"):
+            raise web.HTTPForbidden(text="integration origin rejected")
+        authorization = request.headers.get("Authorization", "")
+        provided = authorization[7:] if authorization.startswith("Bearer ") else ""
+        expected = self.config.integration_token
+        if not expected or not provided or not hmac.compare_digest(provided, expected):
+            raise web.HTTPUnauthorized(text="read-only integration token required")
+        if self.market_feed is None:
+            raise web.HTTPServiceUnavailable(text="integration unavailable")
+
+    async def integration_identity(self, request: web.Request) -> web.Response:
+        if (
+            request.host.lower() != f"{self.config.host}:{self.config.port}".lower()
+            or request.headers.get("Origin")
+        ):
+            raise web.HTTPForbidden(text="integration origin rejected")
+        nonce = request.query.get("nonce", "")
+        if set(request.query) != {"nonce"} or not re.fullmatch(r"[a-f0-9]{64}", nonce):
+            raise web.HTTPBadRequest(text="invalid nonce")
+        if self.market_feed is None or not self.config.integration_token:
+            raise web.HTTPServiceUnavailable(text="integration unavailable")
+        feed = self.market_feed
+        proof = hmac.new(
+            self.config.integration_token.encode(),
+            f"{nonce}:{feed.revision}:{feed.epoch}".encode(),
+            hashlib.sha256,
+        ).hexdigest()
+        return web.json_response(
+            {
+                "application": "crypto-sentinel-free",
+                "sourceRevision": feed.revision,
+                "instanceId": feed.epoch,
+                "proof": proof,
+            }
+        )
+
+    async def integration_status(self, request: web.Request) -> web.Response:
+        self._require_integration_auth(request)
+        if request.query:
+            raise web.HTTPBadRequest(text="unknown status query")
+        return web.json_response(self.market_feed.metadata(self.status_provider()))
+
+    async def integration_feed(self, request: web.Request) -> web.Response:
+        self._require_integration_auth(request)
+        if set(request.query) - {"cursor", "limit"}:
+            raise web.HTTPBadRequest(text="unknown integration query")
+        try:
+            payload = await self.market_feed.export(
+                self.status_provider(),
+                request.query.get("cursor"),
+                int(request.query.get("limit", "100")),
+            )
+        except ValueError as exc:
+            raise web.HTTPBadRequest(text="invalid integration cursor or limit") from exc
+        return web.json_response(payload)
 
     async def status(self, request: web.Request) -> web.Response:
         self._require_dashboard_auth(request)
@@ -165,6 +244,29 @@ class DashboardServer:
         except ValueError:
             limit = 100
         return web.json_response({"alerts": await self.database.list_alerts(limit)})
+
+    async def metrics(self, request: web.Request) -> web.Response:
+        self._require_dashboard_auth(request)
+        symbol = _bounded_query_text(request, "symbol", 40)
+        exchange = _bounded_query_text(request, "exchange", 20)
+        window_seconds = _bounded_query_int(request, "window_seconds", minimum=1, maximum=604_800)
+        since_ms = _bounded_query_int(request, "since_ms", minimum=0, maximum=253_402_300_799_999)
+        limit = _bounded_query_int(request, "limit", minimum=1, maximum=2_000) or 1_000
+        rows = await self.database.list_metrics(
+            symbol=symbol.upper() if symbol else None,
+            exchange=exchange.lower() if exchange else None,
+            window_seconds=window_seconds,
+            since_ms=since_ms,
+            limit=limit,
+        )
+        return web.json_response({"metrics": rows})
+
+    async def delivery_receipts(self, request: web.Request) -> web.Response:
+        self._require_dashboard_auth(request)
+        alert_id = _bounded_query_text(request, "alert_id", 80) or ""
+        limit = _bounded_query_int(request, "limit", minimum=1, maximum=500) or 200
+        rows = await self.database.list_delivery_receipts(alert_id=alert_id, limit=limit)
+        return web.json_response({"receipts": rows})
 
     async def events(self, request: web.Request) -> web.StreamResponse:
         self._require_dashboard_auth(request)
@@ -200,7 +302,12 @@ class DashboardServer:
         self._require_dashboard_auth(request)
         payload = await _safe_json(request)
         severity = str(payload.get("severity", "warning")).lower()
-        alert = await self.test_handler(severity)
+        try:
+            alert = await self.test_handler(severity)
+        except AlarmDeliveryUnavailable as exc:
+            raise web.HTTPServiceUnavailable(
+                text=str(exc) or "required local alarm delivery unavailable"
+            ) from exc
         return web.json_response(alert.to_dict(), status=201)
 
     async def ingest(self, request: web.Request) -> web.Response:
@@ -211,7 +318,12 @@ class DashboardServer:
         payload = await _safe_json(request)
         if not payload:
             raise web.HTTPBadRequest(text="JSON object required")
-        alert = await self.ingest_handler(payload)
+        try:
+            alert = await self.ingest_handler(payload)
+        except AlarmDeliveryUnavailable as exc:
+            raise web.HTTPServiceUnavailable(
+                text=str(exc) or "required local alarm delivery unavailable"
+            ) from exc
         return web.json_response(alert.to_dict(), status=202)
 
 
@@ -225,3 +337,70 @@ async def _safe_json(request: web.Request) -> dict[str, Any]:
     if not isinstance(payload, dict):
         raise web.HTTPBadRequest(text="JSON object required")
     return payload
+
+
+def _status_readiness(status: dict[str, Any]) -> tuple[bool, str]:
+    """Return a conservative public readiness result without exposing status details."""
+    readiness = status.get("readiness")
+    if isinstance(readiness, dict):
+        explicit = readiness.get("overall")
+        if isinstance(explicit, bool):
+            return explicit, "ready" if explicit else "degraded"
+        if isinstance(explicit, str):
+            normalized = explicit.lower()
+            ready = normalized in {"ok", "ready", "healthy", "live"}
+            return ready, "ready" if ready else "degraded"
+
+    feeds = status.get("feeds")
+    if not isinstance(feeds, dict) or not feeds:
+        return False, "starting"
+    stale_limits = status.get("stale_after_seconds")
+    if not isinstance(stale_limits, dict):
+        stale_limits = {}
+
+    for name, raw_feed in feeds.items():
+        if not isinstance(raw_feed, dict) or not raw_feed.get("connected", False):
+            return False, "degraded"
+        if raw_feed.get("subscription_acknowledged") is False:
+            return False, "degraded"
+        age = raw_feed.get(
+            "latest_message_age_seconds",
+            raw_feed.get("message_age_seconds"),
+        )
+        stale_after = stale_limits.get(name)
+        if not isinstance(age, (int, float)) or age < 0:
+            return False, "degraded"
+        if isinstance(stale_after, (int, float)) and age > stale_after:
+            return False, "degraded"
+        if raw_feed.get("ready") is False:
+            return False, "degraded"
+    return True, "ready"
+
+
+def _bounded_query_text(request: web.Request, name: str, maximum: int) -> str | None:
+    value = request.query.get(name)
+    if value is None or not value.strip():
+        return None
+    normalized = value.strip()
+    if len(normalized) > maximum or any(ord(character) < 32 for character in normalized):
+        raise web.HTTPBadRequest(text=f"invalid {name}")
+    return normalized
+
+
+def _bounded_query_int(
+    request: web.Request,
+    name: str,
+    *,
+    minimum: int,
+    maximum: int,
+) -> int | None:
+    value = request.query.get(name)
+    if value is None or not value.strip():
+        return None
+    try:
+        parsed = int(value)
+    except ValueError as exc:
+        raise web.HTTPBadRequest(text=f"invalid {name}") from exc
+    if parsed < minimum or parsed > maximum:
+        raise web.HTTPBadRequest(text=f"invalid {name}")
+    return parsed

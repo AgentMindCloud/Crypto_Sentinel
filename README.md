@@ -1,6 +1,6 @@
 # Crypto Sentinel Free
 
-A zero-subscription, keyless crypto market anomaly alarm. It consumes **public** Binance, Bybit, and OKX futures data, applies deterministic rules, sounds a local alarm, serves a live browser dashboard, and can escalate through ntfy, Telegram, or a generic webhook.
+A zero-subscription, keyless crypto market anomaly alarm. It consumes **public** Binance, Bybit, and OKX futures data, applies deterministic rules, sounds a local alarm, serves a premium interactive browser dashboard, and can escalate through ntfy, Telegram, or a generic webhook.
 
 It does **not** connect to a wallet, place orders, require exchange API keys, or ask an LLM whether an alarm should fire.
 
@@ -21,14 +21,34 @@ The detector uses median/MAD-based robust scores rather than assuming normally d
 
 - Fixed five-second buckets with late/out-of-order trade handling
 - Bounded event deduplication across reconnects
+- Feed-wide payload freshness plus per-symbol informational ages and
+  subscription-acknowledgement tracking; a quiet symbol does not force a
+  reconnect while another valid market stream proves the multiplexed socket is
+  flowing
+- Market-payload watchdogs that reconnect pong-only or wholly silent feeds
+- Continuous-window coverage rules that keep post-outage price gaps out of
+  short-window anomaly calculations until the window recovers
+- Future-timestamp quarantine and monotonic liveness tracking
 - Atomic gzip checkpoints of rolling baselines and recent liquidations
+- Successful-checkpoint write age, last failure, and path state included in
+  authenticated readiness
 - Alert cooldown state restored from SQLite after restart
 - Severity upgrades allowed during cooldown
+- Supervised critical tasks with heartbeat state exposed through authenticated
+  readiness telemetry
+- Queue high-water, drop, and consumer-lag monitoring with health/recovery alarms
 - Separate local-alarm and remote-notifier execution, so a slow webhook does not stall detection
+- Checked, priority-aware local-alarm retries with persisted
+  queued/attempt/success/failure receipts; a failed alarm does not retain its
+  cooldown
 - Three delivery attempts for each enabled remote notifier
 - Persistence errors logged without suppressing browser/local alarm delivery
 - Bounded market-event and remote-notification queues
-- Rotating logs, feed-health alarms, and a deployment `doctor`
+- A credential-free `doctor` that probes every configured exchange-symbol
+  mapping and validates Bybit/OKX subscription acknowledgements
+- A single-instance Windows supervisor, isolated Docker shadow, bounded soak
+  recorder, and fail-closed soak report
+- Rotating logs and feed-health/recovery alarms
 
 This is still best-effort monitoring, not an exactly-once safety system. Read the limitations below before relying on it.
 
@@ -42,13 +62,13 @@ Set-ExecutionPolicy -Scope Process Bypass
 .\scripts\run_windows.ps1
 ```
 
-The installer creates `.venv`, installs the project, copies `config.example.yaml` to `config.yaml`, and generates random dashboard/ingest tokens in `.env`. Existing config and secrets are not overwritten. The app opens its loopback dashboard and supplies the token once; the page stores it locally and removes it from the address bar.
+The installer creates `.venv`, installs the project, copies `config.example.yaml` to `config.yaml`, and generates random dashboard/ingest tokens in `.env`. Existing config and secrets are not overwritten. An enabled dashboard now requires a nonempty access token even on loopback. The app opens its loopback dashboard and supplies the generated token once; the page stores it locally and removes it from the address bar.
 
 On the dashboard:
 
 1. Click **Arm browser sound**.
 2. Click **Enable browser notifications**.
-3. Click **Test critical** and verify both the Python process alarm and browser alarm.
+3. Click **Test critical alarm** and verify both the Python process alarm and browser alarm.
 4. Keep the dashboard pinned. The process-level sound remains primary because browsers can suspend background tabs.
 
 Run all three preflight checks before relying on live data:
@@ -59,7 +79,19 @@ Run all three preflight checks before relying on live data:
 .\.venv\Scripts\crypto-sentinel.exe --config config.yaml doctor --timeout 15
 ```
 
-`doctor` performs real WebSocket probes on the target machine. Do not treat the deployment as live until Binance, Bybit, and OKX all pass.
+`doctor` performs real WebSocket probes on the target machine, observes a
+parsed trade for every configured symbol, and validates Bybit/OKX subscription
+acknowledgements. Do not treat the deployment as live until every enabled
+exchange passes.
+
+At runtime, `stale_after_seconds` is a feed-wide transport watchdog: the socket
+reconnects only when no valid trade or liquidation arrives anywhere on that
+multiplexed feed. Per-symbol ages remain visible for diagnosis, and detector
+freshness prevents an old symbol price from producing a price alert, but a
+single naturally quiet symbol does not by itself prove a broken subscription.
+Public trade streams provide no per-symbol heartbeat, so a partial
+subscription stall cannot be distinguished with certainty from a quiet market;
+rerun `doctor` when a symbol remains silent unexpectedly.
 
 After manual testing, prepare and verify the Docker shadow, then register
 automatic startup:
@@ -73,13 +105,20 @@ docker compose up -d --no-build
 .\scripts\register_windows_startup.ps1
 ```
 
-The registration script first tries three limited, interactive Scheduled Tasks.
+The registration script first tries one limited, interactive guardian Scheduled Task.
 If local Windows policy denies standard-user task registration, it installs a
 per-user Startup shortcut instead. That shortcut runs a single-instance
-supervisor which restarts the native audible primary and soak monitor, starts
-Docker Desktop if needed, and recovers the Docker shadow. No administrator or
-exchange credentials are required. Use `.\scripts\unregister_windows_startup.ps1`
-to remove either startup method.
+guardian, which waits on and restarts the single-instance supervisor with a
+bounded backoff after unexpected exits. The guardian rotates `data/guardian.log`
+and sounds an independent critical PC alarm before restarting. The supervisor
+restarts the native audible primary and soak monitor, starts Docker Desktop if
+needed, and recovers the Docker shadow. Neither process terminates its child at
+ordinary logoff. No administrator or exchange credentials are required. Use
+`.\scripts\unregister_windows_startup.ps1` to remove either startup method.
+Before using the shortcut path, including `-StartupShortcutOnly`, registration
+must remove and verify the absence of the legacy main, Docker-shadow, and soak
+tasks. It refuses to create the shortcut if Task Scheduler cannot be inspected
+or cleaned.
 
 The primary stays on `127.0.0.1:8787`; the non-audible Docker shadow uses
 `127.0.0.1:8788`. They never share tokens, databases, checkpoints, or logs.
@@ -100,7 +139,12 @@ The installer creates random secrets in `.env` when none exists. A VPS cannot pl
 ssh -L 8787:127.0.0.1:8787 user@your-vps
 ```
 
-Then open `http://127.0.0.1:8787/` locally. A hardened systemd service and installer are included under `deploy/systemd/` and `scripts/install_systemd.sh`.
+Then open `http://127.0.0.1:8787/` locally. A hardened systemd service and
+installer are included under `deploy/systemd/` and `scripts/install_systemd.sh`.
+The systemd installer copies an explicit code/build allowlist into a root-owned
+install tree; local configuration, VCS metadata, caches, reports, and runtime
+data are not copied. Configuration/secrets are root-owned and service-group
+readable, while runtime data alone is writable by the service account.
 
 ## Docker setup
 
@@ -117,10 +161,72 @@ docker compose logs -f crypto-sentinel
 The Compose file publishes the shadow dashboard only on host loopback port
 `8788`, uses a read-only root filesystem, bounded process/log settings, a
 60-second shutdown grace period, and dropped Linux capabilities. Configuration
-validation refuses a non-loopback bind without an access token.
+validation refuses any enabled dashboard without a nonempty access token,
+including a loopback-only dashboard.
 
-See `docs/RELIABILITY_ROADMAP.md` for the soak/fault sequence and the
-reliability gate that precedes the premium interactive dashboard redesign.
+See `docs/RELIABILITY_ROADMAP.md` for the implemented reliability phases,
+remaining host-loss limitations, and timed soak gates.
+
+## Premium dashboard
+
+Open the native audible primary at `http://127.0.0.1:8787/`. The Docker shadow,
+when enabled, is at `http://127.0.0.1:8788/` and intentionally has no speaker
+alarm.
+
+The dashboard now includes:
+
+- a truthful readiness rail for feed freshness, critical-task heartbeats,
+  queue pressure, alarm receipts, and any supplied supervisor/checkpoint state;
+- native-primary versus Docker-shadow awareness;
+- venue and per-symbol health, subscription state, detector recovery reasons,
+  and persisted metric timelines;
+- persisted local-alarm receipt history;
+- interactive symbol, venue, severity, category, time, search, and review
+  filters;
+- an alert evidence drawer with detector metrics;
+- browser-local acknowledgements and notes, plus filtered CSV/JSON export;
+- separate warning and critical end-to-end alarm controls;
+- optional soak/recovery history when that evidence is supplied.
+
+Acknowledgements and notes are local browser metadata only. They do not mute,
+deduplicate, reconfigure, or otherwise change the detector. The dashboard has no
+order, wallet, signing, trading, or withdrawal controls.
+
+## Timed soak gates
+
+Start a clean evidence interval after deliberate fault tests, keep the
+supervisor running, and retain the UTC start time:
+
+```powershell
+$gateStart = (Get-Date).ToUniversalTime().ToString("o")
+$gateStart | Set-Content -LiteralPath data\soak-gate-start.txt -Encoding ascii
+```
+
+Run each gate only after its full duration has elapsed:
+
+```powershell
+$gateStart = (Get-Content -LiteralPath data\soak-gate-start.txt -Raw).Trim()
+.\.venv\Scripts\python.exe scripts\soak_report.py --input data\soak.jsonl --since $gateStart --hours 1 --interval 60 --min-coverage 0.98 --require-complete
+.\.venv\Scripts\python.exe scripts\soak_report.py --input data\soak.jsonl --since $gateStart --hours 24 --interval 60 --min-coverage 0.98 --require-complete
+.\.venv\Scripts\python.exe scripts\soak_report.py --input data\soak.jsonl --since $gateStart --hours 72 --interval 60 --min-coverage 0.98 --require-complete
+```
+
+`--require-complete` exits nonzero for insufficient time or coverage, invalid
+rows or duplicate timestamps, missing/malformed native or shadow evidence,
+instance failures, detector baseline/continuity/recovery failures, monitor
+gaps, queue/feed drops, clock quarantine or adjustment, local-alarm failure,
+or runtime/container restart. Every retained sample must explicitly include
+runtime identity, readiness, nonempty feeds, all expected tasks, queue, clock,
+alarm-count, checkpoint, and per-market/per-venue evidence. Docker must also
+have been observed in that sample as present, running, and healthy; an absent
+Docker CLI/engine/container or an unknown health state fails closed. A partial
+detector-ready count caused only by `ready` plus `stale_data` is recorded as an
+informational quiet-market sample when authenticated runtime readiness and
+every feed are healthy; it does not fail the timed gate. The report retains
+those samples/pairs and the minimum ready ratio. Zero-ready markets, mixed or
+missing reasons, positive recovery time, and any other unready reason remain
+fail-closed. A failed gate is evidence to investigate, not a result to edit
+away.
 
 ## Wheel-only install
 
@@ -129,7 +235,7 @@ The wheel contains the Python package, dashboard assets, and bundled starter con
 ```bash
 python -m venv .venv
 . .venv/bin/activate                 # Windows: .venv\Scripts\Activate.ps1
-pip install crypto_sentinel_free-0.1.0-py3-none-any.whl
+pip install crypto_sentinel_free-0.2.0-py3-none-any.whl
 crypto-sentinel init-config --output config.yaml
 crypto-sentinel --config config.yaml simulate
 ```
@@ -229,6 +335,28 @@ Start with the bundled balanced thresholds and monitor only liquid majors. Do no
 
 A useful target is a small number of warnings and fewer than a few critical alarms per week, but the right rate depends on symbols, regime, and purpose. See `docs/TUNING.md`.
 
+The 0.2.0 examples also make the continuity and clock boundaries explicit:
+
+```yaml
+detector:
+  minimum_window_coverage: 0.8
+  maximum_data_gap_seconds: 15
+  max_future_skew_seconds: 5
+```
+
+These are detector integrity controls, not sensitivity shortcuts. Ordinary
+trade silence is not treated as an outage. Continuity gaps come only from
+explicit feed disconnect/stall, local queue loss, process/checkpoint downtime,
+or clock/runtime interruption evidence. An active gap is always fail-closed. A closed gap is
+eligible only when every individual break is no longer than
+`maximum_data_gap_seconds` and the union of all breaks still leaves at least
+`minimum_window_coverage` of the detector window observed. Reconnect and
+restart gaps close independently per symbol only after a fresh trade is
+accepted; subscription acknowledgements, pongs, liquidations, duplicates,
+replays, and quarantined future events do not restore price continuity.
+Exchange timestamps beyond the skew allowance are quarantined rather than
+allowed to distort freshness or cooldown behavior.
+
 ## Important limitations
 
 - This is an attention and risk-monitoring system, not a validated trading strategy.
@@ -236,6 +364,10 @@ A useful target is a small number of warnings and fewer than a few critical alar
 - OKX quote-volume accuracy depends on successfully loading current contract metadata.
 - Public schemas and endpoints can change; feed-health alarms and maintenance remain necessary.
 - Local detection stops when the host sleeps, loses power, or the process exits.
+- The native primary, Docker shadow, guardian, supervisor, and soak recorder
+  are all on the same PC. They cannot provide independent coverage while that
+  host is asleep, powered off, or disconnected; use a second always-on host for
+  that.
 - A hard crash can lose up to one checkpoint interval of baseline state.
 - Remote retries can produce duplicate messages when a provider accepts a request but its response is lost.
 - Remote notification queues are in memory; an abrupt process failure can lose unsent notifications.

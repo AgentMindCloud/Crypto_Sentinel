@@ -73,8 +73,6 @@ def local_checks(config: AppConfig) -> list[dict[str, Any]]:
         notifier_names.append("telegram")
     if config.notifiers.webhook.enabled:
         notifier_names.append("webhook")
-    if config.dashboard.enabled:
-        notifier_names.append("browser")
     checks.append(
         _check(
             "alert_delivery",
@@ -138,28 +136,37 @@ async def _probe_binance(
     mapping = config.symbol_map("binance")
     if not mapping:
         return _check("binance_live", False, "no Binance symbol configured")
-    exchange_symbol = next(iter(mapping))
     feed = BinanceFeed(
         config.exchanges.binance,
-        {exchange_symbol: mapping[exchange_symbol]},
+        mapping,
         asyncio.Queue(),
-        HealthRegistry(["binance"]),
+        HealthRegistry(["binance"], {"binance": mapping.values()}),
         asyncio.Event(),
     )
-    url = f"{feed.base_url}{exchange_symbol.lower()}@aggTrade"
     started = time.monotonic()
+    deadline = asyncio.get_running_loop().time() + timeout
+    expected_symbols = set(mapping.values())
+    observed_symbols: set[str] = set()
     try:
-        async with session.ws_connect(url, heartbeat=120, autoclose=True) as ws:
-            while True:
-                payload = await _receive_json(ws, timeout)
+        async with session.ws_connect(feed._url(), heartbeat=120, autoclose=True) as ws:
+            while observed_symbols != expected_symbols:
+                remaining = deadline - asyncio.get_running_loop().time()
+                if remaining <= 0:
+                    missing = ", ".join(sorted(expected_symbols - observed_symbols))
+                    raise TimeoutError(f"no Binance trade payload for: {missing}")
+                payload = await _receive_json(ws, remaining)
                 event = feed.parse_message(payload)
-                if event is not None:
-                    return _check(
-                        "binance_live",
-                        True,
-                        f"parsed {type(event).__name__} for {event.symbol}",
-                        latency_ms=round((time.monotonic() - started) * 1000),
-                    )
+                if event is not None and event.__class__.__name__ == "Trade":
+                    observed_symbols.add(event.symbol)
+            return _check(
+                "binance_live",
+                True,
+                f"parsed trades for all {len(expected_symbols)} symbol(s)",
+                latency_ms=round((time.monotonic() - started) * 1000),
+                symbols=sorted(observed_symbols),
+                topics_encoded=len(mapping) * 2,
+                subscription_mode="combined-stream URL",
+            )
     except Exception as exc:
         return _check("binance_live", False, f"{type(exc).__name__}: {exc}")
 
@@ -168,29 +175,55 @@ async def _probe_bybit(config: AppConfig, session: ClientSession, timeout: float
     mapping = config.symbol_map("bybit")
     if not mapping:
         return _check("bybit_live", False, "no Bybit symbol configured")
-    exchange_symbol = next(iter(mapping))
     feed = BybitFeed(
         config.exchanges.bybit,
-        {exchange_symbol: mapping[exchange_symbol]},
+        mapping,
         asyncio.Queue(),
-        HealthRegistry(["bybit"]),
+        HealthRegistry(["bybit"], {"bybit": mapping.values()}),
         asyncio.Event(),
     )
     started = time.monotonic()
+    deadline = asyncio.get_running_loop().time() + timeout
+    expected_symbols = set(mapping.values())
+    observed_symbols: set[str] = set()
+    topics = [
+        topic
+        for exchange_symbol in mapping
+        for topic in (
+            f"publicTrade.{exchange_symbol}",
+            f"allLiquidation.{exchange_symbol}",
+        )
+    ]
+    acknowledged = False
     try:
         async with session.ws_connect(feed.url, heartbeat=30, autoclose=True) as ws:
-            await ws.send_json({"op": "subscribe", "args": [f"publicTrade.{exchange_symbol}"]})
-            while True:
-                payload = await _receive_json(ws, timeout)
+            await ws.send_json({"op": "subscribe", "args": topics})
+            while not acknowledged or observed_symbols != expected_symbols:
+                remaining = deadline - asyncio.get_running_loop().time()
+                if remaining <= 0:
+                    missing = ", ".join(sorted(expected_symbols - observed_symbols))
+                    if not acknowledged:
+                        raise TimeoutError("Bybit subscription acknowledgement timed out")
+                    raise TimeoutError(f"no Bybit trade payload for: {missing}")
+                payload = await _receive_json(ws, remaining)
+                if feed.validate_subscription_ack(payload):
+                    acknowledged = True
+                    continue
                 events = feed.parse_message(payload)
-                if events:
-                    event = events[0]
-                    return _check(
-                        "bybit_live",
-                        True,
-                        f"parsed {type(event).__name__} for {event.symbol}",
-                        latency_ms=round((time.monotonic() - started) * 1000),
-                    )
+                observed_symbols.update(
+                    event.symbol for event in events if event.__class__.__name__ == "Trade"
+                )
+            return _check(
+                "bybit_live",
+                True,
+                (
+                    f"acknowledged {len(topics)} topic(s) and parsed trades "
+                    f"for all {len(expected_symbols)} symbol(s)"
+                ),
+                latency_ms=round((time.monotonic() - started) * 1000),
+                symbols=sorted(observed_symbols),
+                acknowledged_topics=topics,
+            )
     except Exception as exc:
         return _check("bybit_live", False, f"{type(exc).__name__}: {exc}")
 
@@ -199,38 +232,62 @@ async def _probe_okx(config: AppConfig, session: ClientSession, timeout: float) 
     mapping = config.symbol_map("okx")
     if not mapping:
         return _check("okx_live", False, "no OKX symbol configured")
-    exchange_symbol = next(iter(mapping))
     feed = OkxFeed(
         config.exchanges.okx,
-        {exchange_symbol: mapping[exchange_symbol]},
+        mapping,
         asyncio.Queue(),
-        HealthRegistry(["okx"]),
+        HealthRegistry(["okx"], {"okx": mapping.values()}),
         asyncio.Event(),
     )
     started = time.monotonic()
+    deadline = asyncio.get_running_loop().time() + timeout
+    expected_symbols = set(mapping.values())
+    observed_symbols: set[str] = set()
+    args = [{"channel": "trades", "instId": symbol} for symbol in mapping]
+    pending_topics = {feed.topic_key(arg) for arg in args}
     try:
         await feed._load_contract_values(session)
         async with session.ws_connect(feed.url, heartbeat=None, autoclose=True) as ws:
             await ws.send_json(
                 {
-                    "id": f"{feed.subscription_id}doctor",
+                    "id": feed.subscription_id,
                     "op": "subscribe",
-                    "args": [{"channel": "trades", "instId": exchange_symbol}],
+                    "args": args,
                 }
             )
-            while True:
-                payload = await _receive_json(ws, timeout)
-                feed.raise_for_error(payload)
+            while pending_topics or observed_symbols != expected_symbols:
+                remaining = deadline - asyncio.get_running_loop().time()
+                if remaining <= 0:
+                    if pending_topics:
+                        missing = ", ".join(sorted(pending_topics))
+                        raise TimeoutError(
+                            f"OKX subscription acknowledgement timed out for: {missing}"
+                        )
+                    missing = ", ".join(sorted(expected_symbols - observed_symbols))
+                    raise TimeoutError(f"no OKX trade payload for: {missing}")
+                payload = await _receive_json(ws, remaining)
+                topic = feed.validate_subscription_ack(payload)
+                if topic is not None:
+                    if topic not in pending_topics:
+                        raise ConnectionError(
+                            f"unexpected or duplicate OKX subscription ack: {topic}"
+                        )
+                    pending_topics.remove(topic)
+                    continue
                 events = feed.parse_message(payload)
-                if events:
-                    event = events[0]
-                    return _check(
-                        "okx_live",
-                        True,
-                        f"parsed {type(event).__name__} for {event.symbol}",
-                        latency_ms=round((time.monotonic() - started) * 1000),
-                        contract_value=feed.contract_values.get(exchange_symbol),
-                    )
+                observed_symbols.update(event.symbol for event in events)
+            return _check(
+                "okx_live",
+                True,
+                (
+                    f"acknowledged {len(args)} topic(s) and parsed trades "
+                    f"for all {len(expected_symbols)} symbol(s)"
+                ),
+                latency_ms=round((time.monotonic() - started) * 1000),
+                symbols=sorted(observed_symbols),
+                acknowledged_topics=[feed.topic_key(arg) for arg in args],
+                contract_values=dict(feed.contract_values),
+            )
     except Exception as exc:
         return _check("okx_live", False, f"{type(exc).__name__}: {exc}")
 

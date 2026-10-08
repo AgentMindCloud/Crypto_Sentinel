@@ -11,9 +11,11 @@ def test_external_alert_timestamp_is_clamped() -> None:
     past = Alert.from_external({"timestamp_ms": now_ms - 99_000_000}, now_ms)
     malformed = Alert.from_external({"timestamp_ms": "not-a-number"}, now_ms)
 
-    assert future.timestamp_ms == now_ms + 300_000
+    assert future.timestamp_ms == now_ms
     assert past.timestamp_ms == now_ms - 300_000
     assert malformed.timestamp_ms == now_ms
+    assert future.metrics["_timestamp_normalized"] is True
+    assert past.metrics["_timestamp_normalized"] is True
 
 
 def test_external_alert_normalizes_direction_and_nonfinite_metrics() -> None:
@@ -28,3 +30,20 @@ def test_external_alert_normalizes_direction_and_nonfinite_metrics() -> None:
     assert alert.direction == "mixed"
     assert alert.metrics == {"bad": None, "nested": [None, 1]}
     assert len(alert.dedup_key) == 300
+    assert alert.dedup_key.startswith("external:")
+
+
+def test_external_alert_cannot_claim_an_internal_dedup_key() -> None:
+    internal_key = "market:BTCUSDT:down:60"
+
+    alert = Alert.from_external(
+        {
+            "source": "trusted-local-relay",
+            "symbol": "BTCUSDT",
+            "dedup_key": internal_key,
+        },
+        1_800_000_000_000,
+    )
+
+    assert alert.dedup_key == f"external:{internal_key}"
+    assert alert.dedup_key != internal_key

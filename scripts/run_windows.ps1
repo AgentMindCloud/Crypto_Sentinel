@@ -13,5 +13,6 @@ if (-not (Test-Path $Python)) {
 if (-not (Test-Path $Config)) {
     throw "Configuration not found: $Config"
 }
-& $Python -m crypto_sentinel --config $Config run
+# Isolated bootstrap excludes caller CWD, user-site and ambient PYTHON* settings.
+& $Python -I -c 'import runpy,sys;sys.path.insert(0,sys.argv.pop(1));runpy.run_module(sys.argv.pop(1),run_name=sys.argv.pop(1))' (Join-Path $Root 'src') crypto_sentinel __main__ --config $Config run
 exit $LASTEXITCODE

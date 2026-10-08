@@ -90,7 +90,10 @@ The browser uses server-sent events. Browser audio requires a user gesture and c
 ## Failure modes
 
 - DNS/network failure: adapter reconnects; feed-health alarm fires through surviving channels.
-- One venue stale: multi-exchange critical confirmation may be unavailable; status dashboard shows it.
+- One venue wholly stale: the socket reconnects and multi-exchange critical
+  confirmation may be unavailable. One quiet symbol is reported
+  informationally and its stale price is ineligible for price alarms, but it
+  does not force a healthy multiplexed socket to reconnect.
 - Process crash/host sleep: no local detection. External uptime monitoring is needed for a true dead-man check.
 - Queue overload: events are dropped and counted. Reduce symbols or increase capacity only after inspecting memory.
 - Exchange schema change: parser may stop producing normalized events; stale-feed alarm should surface this.

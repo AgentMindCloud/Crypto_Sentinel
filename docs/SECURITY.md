@@ -15,7 +15,11 @@ If a future feature requires any of these, treat it as a different system and co
 
 ## Dashboard exposure
 
-The safe default is `127.0.0.1`. Fresh Windows/Linux installs generate random dashboard and ingest tokens. When the dashboard binds to any non-loopback address, configuration validation requires an access token. A token provides authentication, not transport encryption.
+The safe default is `127.0.0.1`. Fresh Windows/Linux installs generate random
+dashboard and ingest tokens. Configuration validation requires a nonempty
+access token whenever the dashboard is enabled, including on loopback, and the
+request layer never treats a missing configured token as authorization. A token
+provides authentication, not transport encryption.
 
 For remote access, prefer one of:
 
@@ -40,7 +44,8 @@ Controls implemented:
 - field-length and nesting caps
 - non-finite metric sanitization
 - external timestamp clamping
-- cooldown/dedup handling
+- cooldown/dedup handling in a reserved external namespace that caller-provided
+  keys cannot escape
 - no shell evaluation of incoming fields
 
 A custom local notifier command receives alert values as separate process arguments, not through a shell. Nevertheless, configure only executables you trust.
@@ -75,7 +80,13 @@ chmod 600 .env config.yaml
 chmod 700 data
 ```
 
-The included systemd unit uses a dedicated unprivileged account and hardening directives. Review paths before installation.
+The included systemd installer copies only an explicit build/runtime source
+allowlist into a root-owned, non-group-writable install tree. It does not stage
+repository metadata, local configuration, secret files, caches, setup reports,
+or runtime data. Configuration and the generated environment file are mode
+`0640` and runtime data is mode `0700` under the dedicated unprivileged service
+account. The unit also applies hardening directives. Review paths before
+installation.
 
 ## Supply chain
 

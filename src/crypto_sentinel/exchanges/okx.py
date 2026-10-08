@@ -41,28 +41,87 @@ class OkxFeed(BaseFeed):
                 # displayed quote notional can be wrong until metadata becomes available.
                 self.log.warning("could not load %s contract value: %s", symbol, exc)
 
+    @staticmethod
+    def topic_key(arg: dict[str, Any]) -> str:
+        return f"{arg.get('channel', '')}:{str(arg.get('instId', '')).upper()}"
+
+    def validate_subscription_ack(self, payload: dict[str, Any]) -> str | None:
+        self.raise_for_error(payload)
+        if payload.get("event") != "subscribe":
+            return None
+        response_id = payload.get("id")
+        if response_id is not None and response_id != self.subscription_id:
+            raise ConnectionError(f"OKX subscription acknowledgement id mismatch: {response_id}")
+        arg = payload.get("arg")
+        if not isinstance(arg, dict):
+            raise ConnectionError("OKX subscription acknowledgement missing arg")
+        if arg.get("channel") != "trades" or not arg.get("instId"):
+            raise ConnectionError(f"unexpected OKX subscription acknowledgement: {arg}")
+        return self.topic_key(arg)
+
+    async def _await_subscription_acks(self, ws: Any, expected_topics: list[str]) -> None:
+        pending = set(expected_topics)
+        deadline = asyncio.get_running_loop().time() + min(
+            15.0, float(self.config.stale_after_seconds)
+        )
+        while pending:
+            remaining = deadline - asyncio.get_running_loop().time()
+            if remaining <= 0:
+                missing = ", ".join(sorted(pending))
+                raise TimeoutError(f"OKX subscription acknowledgement timed out for: {missing}")
+            message = await asyncio.wait_for(ws.receive(), timeout=remaining)
+            if message.type == WSMsgType.TEXT:
+                if message.data == "pong":
+                    continue
+                payload = json.loads(message.data)
+                topic = self.validate_subscription_ack(payload)
+                if topic is not None:
+                    if topic not in pending:
+                        raise ConnectionError(
+                            f"unexpected or duplicate OKX subscription ack: {topic}"
+                        )
+                    pending.remove(topic)
+                    self.health.acknowledge_subscriptions(self.name, [topic])
+                    continue
+                # Preserve a market payload that raced ahead of its ack.
+                for event in self.parse_message(payload):
+                    self.emit(event)
+            elif message.type in {WSMsgType.CLOSE, WSMsgType.CLOSED, WSMsgType.ERROR}:
+                raise ConnectionError(
+                    f"websocket closed before OKX subscription acks ({message.type})"
+                )
+
     async def stream(self, session: ClientSession) -> None:
         if not self.symbol_map:
             raise ValueError("no OKX symbols configured")
         await self._load_contract_values(session)
         args = [{"channel": "trades", "instId": symbol} for symbol in self.symbol_map]
+        topics = [self.topic_key(arg) for arg in args]
         async with session.ws_connect(self.url, heartbeat=None, autoclose=True) as ws:
-            await ws.send_json({"id": self.subscription_id, "op": "subscribe", "args": args})
             self.health.connected(self.name)
+            self.health.expect_subscriptions(self.name, topics)
+            await ws.send_json({"id": self.subscription_id, "op": "subscribe", "args": args})
+            await self._await_subscription_acks(ws, topics)
+            self.start_market_watchdog()
             self.log.info("connected with %d symbols", len(self.symbol_map))
             while not self.stop_event.is_set():
                 try:
-                    message = await asyncio.wait_for(ws.receive(), timeout=20)
+                    message = await asyncio.wait_for(
+                        ws.receive(), timeout=self.receive_timeout_seconds
+                    )
                 except TimeoutError:
                     await ws.send_str("ping")
+                    self.assert_market_flow()
                     continue
                 if message.type == WSMsgType.TEXT:
                     if message.data == "pong":
+                        self.assert_market_flow()
                         continue
                     payload = json.loads(message.data)
-                    self.raise_for_error(payload)
+                    self.validate_subscription_ack(payload)
                     for event in self.parse_message(payload):
                         self.emit(event)
+                    self.assert_market_flow()
                 elif message.type in {WSMsgType.CLOSE, WSMsgType.CLOSED, WSMsgType.ERROR}:
                     break
 
@@ -93,6 +152,8 @@ class OkxFeed(BaseFeed):
                 continue
             timestamp_ms = int(item["ts"])
             side = str(item.get("side", "")).lower()
+            if side not in {"buy", "sell"}:
+                continue
             trade_id = item.get("tradeId") or f"{timestamp_ms}:{item.get('px')}:{item.get('sz')}"
             events.append(
                 Trade(

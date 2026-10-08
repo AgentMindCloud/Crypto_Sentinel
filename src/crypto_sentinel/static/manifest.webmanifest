@@ -1,10 +1,11 @@
 {
-  "name": "Crypto Sentinel Free",
+  "name": "Crypto Sentinel Market Intelligence",
   "short_name": "Sentinel",
+  "description": "Local, monitoring-only crypto anomaly intelligence and verified alarm evidence.",
   "start_url": "/",
   "display": "standalone",
-  "background_color": "#0b0d12",
-  "theme_color": "#111827",
+  "background_color": "#0E0C0B",
+  "theme_color": "#0E0C0B",
   "icons": [
     {"src": "/icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any maskable"}
   ]
